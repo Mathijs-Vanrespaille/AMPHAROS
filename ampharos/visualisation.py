@@ -38,11 +38,11 @@ def plot_frequency_tracks(tracks, ls, ms, n_pgs, frot_rel=0.00,
     ------- Parameters -------
     tracks: dict
         The dictionary summarising the StORM output of a MESA run as created by read_storm_tracks
-    ls:
+    ls: list of ints
         Degrees of the modes to be plotted
-    ms:
+    ms: list of ints
         Azimuthal orders of the modes to be plotted
-    n_pgs:
+    n_pgs: list of ints
         Radial orders of the modes to be plotted
     frot_rel: float
         Rotation rate relative to critical.
@@ -76,7 +76,7 @@ def plot_frequency_tracks(tracks, ls, ms, n_pgs, frot_rel=0.00,
     assert len(ls) == len(ms)
 
     markers = {0:"o", 1:"^", 2:"p"} # per degree
-    colours = {-3:'navy', -2:'blue', -1:'dodgerblue', 0:"purple", 1:'violet', 2:'salmon', 3:'red'} # per radial order
+    colours = {-3:'navy', -2:'blue', -1:'dodgerblue', 0:"purple", 1:'violet', 2:'salmon', 3:'red', 4:'red', 5:'red'} # per radial order
 
     fig, ax = plt.subplots(1,1,figsize=(10,6))
 
@@ -119,23 +119,69 @@ def plot_frequency_tracks(tracks, ls, ms, n_pgs, frot_rel=0.00,
     return fig, ax
 
 
-def add_IS_siemen(ax,
-                  datadir='/Users/dario/PyhtonPackages/myhelpers/instability_strips/',
-                  zorder=0, Zini='0.014', rot='0.0', alpha=0.2, y_axis='logL',
-                  plot_label=False, IStype='both', p_mode_col='k', fill=False,
-                  p_mode_ls='solid', g_mode_col='k', g_mode_ls='dashed', lw=.5):
-    '''
-    Function to plot Siemen Burssens' instability_strips given a certain axis.
-    Written by Siemen Burssens
+def add_instability_strip(ax, y_axis='logL',
+                          datadir='instability_strips/', Zini='0.014', rot='0.0',
+                          IStype='both', p_mode_col='k', p_mode_ls='solid', g_mode_col='k', g_mode_ls='dashed', 
+                          zorder=0, fill=False, alpha=0.2, lw=.5):
+    """
+    Plot the SPB and/or beta Cep instability strip(s) for a certain metallicity
 
-    @ ax --> axis on which to plot the strips
-    @ datadir --> location of the .txt files containing the boundaries
-    @ spherical --> spherical degrees
-    @ zorder = zorder (matplotlib def.)
-    @ alpha = alpha (matplotlib def.)
+    Author: Siemen Burssens
 
-
-    '''
+    ------- Parameters -------
+    ax: matplotlib.Axes
+        Axes object the instability strip is to be plotted on
+    y_axis: string
+        What is shown on the y-axis
+        Must be 'logL' or 'logLsp'
+        Defaults to 'logL'
+    datadir: string
+        Path to the .txt files containing the boundaries
+        Defaults to 'instability_strip/'
+    Zini: string
+        Metallicity of the models used to compute the instability strip
+        Must be one of '0.010', '0.014', '0.020'
+        Defaults to '0.014'
+    rot: string
+        Rotation rate relative to the Keplerian critical rotation rate of 
+        the models used to compute the instability strip
+        Must be one of '0.0', '0.25', '0.50'
+        Defaults to '0.0'
+    IStype: 
+        Which instability strip(s) to plot
+        Must be one of 'both', 'p-mode', 'g-mode'
+        Defaults to 'both'
+    p_mode_col: string
+        Matplotlib's colour to use for the lines indicating the beta Cep 
+        instability strip
+        Defaults to 'k'
+    p_mode_ls: string
+        Matplotlib's linestyle to use for the lines indicating the beta Cep
+        instability strip
+        Defaults to 'solid'
+    g_mode_col: string
+        Matplotlib's colour to use for the lines indicating the SPB 
+        instability strip
+        Defaults to 'k'
+    g_mode_ls: string
+        Matplotlib's linestyle to use for the lines indicating the SPB
+        instability strip
+        Defaults to 'dashed'
+    zorder: float
+        Matplotlib's zorder to set the drawing order of the elements on an axes
+        Defaults to 0
+    lw: float
+        Matplotlib's linewidth to set the width of the lines indicating 
+        the instability strips
+        Defaults to 0.5
+    fill: bool
+        Whether to fill the space between the red and blue edges of the 
+        instability strip(s) with coloured hatching
+        Defaults to False
+    alpha: float
+        Matplotlib's alpha to set the transparancy of the filling
+        Defaults to 0.2
+    """
     # Spec Lum always in files, logg or logL not
 
     if y_axis == 'logLsp':
@@ -374,10 +420,10 @@ def plot_all_chi2_in_HRD(results, observation, n_pg_main,
     ax.invert_xaxis()
 
     if show_IS :
-        add_IS_siemen(ax, datadir='code/instability_strips/',
-                      zorder=0, Zini='0.014', rot='0.0', alpha=0.2, y_axis='logL',
-                      plot_label=False, IStype='p-mode', p_mode_col='k', fill=False,
-                      p_mode_ls='dotted', g_mode_col='k', g_mode_ls='dashed', lw=.5)
+        add_instability_strip(ax, datadir='code/instability_strips/',
+                              zorder=0, Zini='0.014', rot='0.0', alpha=0.2, y_axis='logL',
+                              plot_label=False, IStype='p-mode', p_mode_col='k', fill=False,
+                              p_mode_ls='dotted', g_mode_col='k', g_mode_ls='dashed', lw=.5)
 
     ax.legend(fontsize=10)
     ax.set_xlabel("log(Teff) [K]", fontsize=10)
@@ -474,10 +520,10 @@ def plot_models_and_observed_HRD(models, observation,
     ax.invert_xaxis()
 
     if show_IS: 
-        add_IS_siemen(ax, datadir='code/instability_strips/',
-                      zorder=0, Zini='0.014', rot='0.0', alpha=0.2, y_axis='logL',
-                      plot_label=False, IStype='p-mode', p_mode_col='k', fill=False,
-                      p_mode_ls='dotted', g_mode_col='k', g_mode_ls='dashed', lw=.5)
+        add_instability_strip(ax, datadir='code/instability_strips/',
+                              zorder=0, Zini='0.014', rot='0.0', alpha=0.2, y_axis='logL',
+                              plot_label=False, IStype='p-mode', p_mode_col='k', fill=False,
+                              p_mode_ls='dotted', g_mode_col='k', g_mode_ls='dashed', lw=.5)
 
     ax.legend(fontsize=10)
     ax.set_xlabel("log(Teff) [K]", fontsize=10)
