@@ -7,14 +7,16 @@ import sys
 import io_functions as io
 
 
-##### MISCELLANEOUS #########################################################################
+##### MISCELLANEOUS ############################################################
 
 
 def half_max_x(x, y):
     """
-    Linearly interpolate to the points where the curve crosses the FWHM of the distribution y.
+    Linearly interpolate to the points where the curve crosses the full width 
+    half maximum of the distribution y.
 
-    Author: ColonelFazackerley. Taken from https://stackoverflow.com/questions/49100778/fwhm-calculation-using-python
+    Author: ColonelFazackerley. Taken from 
+    https://stackoverflow.com/questions/49100778/fwhm-calculation-using-python
 
     ------- Parameters -------
 
@@ -26,7 +28,8 @@ def half_max_x(x, y):
     ------- Returns -------
 
     crossings: list of two floats
-        Interpolated values of x where the distribution crosses the half-maximum level left and right of the mode
+        Interpolated values of x where the distribution crosses the half-maximum 
+        level left and right of the mode
     """
 
     half = max(y)/2.0
@@ -38,12 +41,14 @@ def half_max_x(x, y):
 
 
 def initialise_grid(MESA_output_dir, parameter_file, frots_rel_to_include=[], 
-                    ls_to_include=[0,0,0,1,1,1,1,1,1,1,2,2,2,2,2,2,2], n_pgs_to_include=[1,2,3,-3,-2,-1,0,1,2,3,-3,-2,-1,0,1,2,3],
+                    ls_to_include=[0,0,0,1,1,1,1,1,1,1,2,2,2,2,2,2,2], 
+                    n_pgs_to_include=[1,2,3,-3,-2,-1,0,1,2,3,-3,-2,-1,0,1,2,3],
                     Xc_min=None, Xc_max=None,
                     header=True, delimiter=",", add_beta=False) :
     """
-    Create and return a dictionary holding all the required MESA and StORM output
-    and some supporting fields to help navigate them. See the 'Returns' section below for details.
+    Create and return a dictionary holding all the required MESA and StORM 
+    output and some supporting fields to help navigate them. See the 'Returns' 
+    section below for details.
 
     Author: Mathijs Vanrespaille
 
@@ -51,33 +56,37 @@ def initialise_grid(MESA_output_dir, parameter_file, frots_rel_to_include=[],
     MESA_output_dir: string
         Path to the top level directory holding the MESA and GYRE output
     parameter_file: string
-        Path to the file containing all combinations of the varied model parameters Z, M,
-        logD, fov; i.e. the different parameters fed to MESA, without affecting the
-        StORM analysis.
+        Path to the file containing all combinations of the varied model 
+        parameters Z, M, logD, fov; i.e. the different parameters fed to MESA, 
+        without affecting the StORM analysis.
     frots_rel_to_include: list of floats
-        The rotation rates relative to the Keplerian critical rotation rate to be included.
-        If left empty, all the rotation rates provided in the StORM summaries are used.
+        The rotation rates relative to the Keplerian critical rotation rate to 
+        be included. If left empty, all the rotation rates provided in the StORM
+        summaries are used.
         Defaults to []
     Xc_min: float
-        The smallest central hydrogen fraction to consider. MESA history output and StORM summaries
-        at a central hydrogen fraction smaller than this limit are not read in. 
-        If None, no filtering based on the lower limit of the central hydrogen fraction is done
+        The smallest central hydrogen fraction to consider. MESA history output 
+        and StORM summaries at a central hydrogen fraction smaller than this 
+        limit are not read in. If None, no filtering based on the lower limit of 
+        the central hydrogen fraction is done
         Defaults to None
     Xc_max: float
-        The largest central hydrogen fraction to consider. MESA history output and StORM summaries
-        at a central hydrogen fraction greater than this limit are not read in. 
-        If None, no filtering based on the upper limit of the central hydrogen fraction is done
+        The largest central hydrogen fraction to consider. MESA history output 
+        and StORM summaries at a central hydrogen fraction greater than this 
+        limit are not read in. If None, no filtering based on the upper limit of 
+        the central hydrogen fraction is done
         Defaults to None
     header: bool
         Whether the parameter file has a header describing each column. If not,
-        the file is assumed to have only four columns in the order Z, M, logD, fov
+        the file is assumed to have only four columns in the order Z, M, logD, 
+        fov
         Defaults to True
     delimiter: string
         The character(s) used to separate the values in the parameter file.
         Defaults to ","
     add_beta: bool 
-        Whether to include the beta_nl constant from GYRE for each multiplet in the model
-        Setting this to True increases loading time considerably
+        Whether to include the beta_nl constant from GYRE for each multiplet in 
+        the model. Setting this to True increases loading time
         Defaults to False
 
     ------- Returns -------
@@ -89,37 +98,54 @@ def initialise_grid(MESA_output_dir, parameter_file, frots_rel_to_include=[],
         "Ms": numpy.array of floats
             Initial mass in solar masses of each MESA-StORM run
         "logDs": numpy.array of floats
-            Base 10 logarithm of the mixing strength at the base of the radiative envelope of each MESA-StORM run
+            Base 10 logarithm of the mixing strength at the base of the 
+            radiative envelope of each MESA-StORM run
         "fovs": numpy.array of floats
             Overshooting parameter of each MESA-StORM run
         "frots_rel": numpy.array of floats
-            Rotation rate in relative fraction of Keplerian critical rotation rate used in each StORM computation
+            Rotation rate in relative fraction of Keplerian critical rotation 
+            rate used in each StORM computation
             or only the subset of these included in the frots_file
         "all_tracks": list of dicts
-            Dictionaries describing the StORM output of each MESA evolutionary track, as detailed
-            in the documentation of read_storm_tracks
-    Each of these arrays is off the same length, namely the number of lines in the parameter file (minus header).
-    In other words, there is one tracks dictionary for each evolution model containing the StORM analysis
-    of all output steps and rotation rates.
+            Dictionaries describing the StORM output of each MESA evolutionary 
+            track, as detailed in the documentation of read_storm_tracks
+    Each of these arrays is off the same length, namely the number of lines in 
+    the parameter file (minus header). In other words, there is one tracks 
+    dictionary for each evolution model containing the StORM analysis of all 
+    output steps and rotation rates.
+
     """
     assert len(ls_to_include) == len(n_pgs_to_include)
-    Zs, Ms, logDs, fovs = io.read_model_parameters(parameter_file, header=header, delimiter=delimiter)
-    grid = {"Zs":Zs, "Ms":Ms, "logDs":logDs, "fovs":fovs, "frots_rel":frots_rel_to_include,
-            "all_tracks":[], "MESA_output_dir":MESA_output_dir}
+    Zs, Ms, logDs, fovs = io.read_model_parameters(parameter_file, 
+                                                   header=header, 
+                                                   delimiter=delimiter)
+    grid = {"Zs":Zs, "Ms":Ms, "logDs":logDs, "fovs":fovs, 
+            "frots_rel":frots_rel_to_include, "all_tracks":[], 
+            "MESA_output_dir":MESA_output_dir}
     N = len(Zs)
     for i, (Z, M, logD, fov) in enumerate(zip(Zs, Ms, logDs, fovs)) :
-        grid["all_tracks"].append(io.read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include, Xc_min, Xc_max, ls=ls_to_include, n_pgs=n_pgs_to_include, add_beta=add_beta))
+        grid["all_tracks"].append(io.read_storm_tracks(MESA_output_dir, Z, M, 
+                                                       logD, fov, 
+                                                       frots_rel_to_include, 
+                                                       Xc_min, Xc_max, 
+                                                       ls=ls_to_include, 
+                                                       n_pgs=n_pgs_to_include, 
+                                                       add_beta=add_beta))
         print(f"Finished reading {i+1}/{N}")
     if len(frots_rel_to_include) == 0 :
-        grid["frots_rel"] = grid["all_tracks"][0]["frots_rel"] # Note that this assumes all the StORM summaries contain the same relative rotation rates
+        # Note that this assumes all the StORM summaries contain the same 
+        # relative rotation rates
+        grid["frots_rel"] = grid["all_tracks"][0]["frots_rel"] 
     return grid
 
 
 def lin_interp(x, y, i, half):
     """
-    Linearly interpolate to the point just beyond x[i] where the curve crosses the FWHM of the distribution y.
+    Linearly interpolate to the point just beyond x[i] where the curve crosses 
+    the FWHM of the distribution y.
 
-    Author: ColonelFazackerley. Taken from https://stackoverflow.com/questions/49100778/fwhm-calculation-using-python
+    Author: ColonelFazackerley. Taken from 
+    https://stackoverflow.com/questions/49100778/fwhm-calculation-using-python
 
     ------- Parameters -------
 
@@ -135,7 +161,8 @@ def lin_interp(x, y, i, half):
     ------- Returns -------
 
     crossing: float
-        Interpolated value of x where the distribution crosses the half-maximum level
+        Interpolated value of x where the distribution crosses the half-maximum 
+        level
     """
     return x[i] + (x[i+1] - x[i]) * ((half - y[i]) / (y[i+1] - y[i]))
 
@@ -190,18 +217,20 @@ def substring(line, sep_first, sep_second) :
 
 
 
-##### EXTRACTING DATA FROM DICTIONARIES #########################################################
+##### EXTRACTING DATA FROM DICTIONARIES ########################################
 
 
 def get_frequency_track(tracks, l, m, n_pg, frot_rel=0.00) :
     """
-    Extract the frequencies of a mode with the given ID at the given relative rotation rate from the track dictionary.
+    Extract the frequencies of a mode with the given ID at the given relative 
+    rotation rate from the track dictionary.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     tracks: dict
-        The dictionary summarising the STORM output as created by read_storm_tracks
+        The dictionary summarising the STORM output as created by 
+        read_storm_tracks
     l: int
         Degree of the mode
     m: int
@@ -214,29 +243,34 @@ def get_frequency_track(tracks, l, m, n_pg, frot_rel=0.00) :
 
     ------- Returns -------
     freq_track: numpy.array of floats
-        The frequencies contained in the track matching the given degree and radial order.
-        The tracks are expected to be sorted from smallest Xc to largest Xc. 
-        Some IDs are repeated, usually when modes are switching their radial order identity
-        from +1 to -1 or vice versa. As such, we only track the last frequency if the requested
-        radial order is positive or zero and the first frequency if the requested n_pg is negative.
+        The frequencies contained in the track matching the given degree and 
+        radial order. The tracks are expected to be sorted from smallest Xc to 
+        largest Xc. Some IDs are repeated, usually when modes are switching 
+        their radial order identity from +1 to -1 or vice versa. As such, we 
+        only track the last frequency if the requested radial order is positive 
+        or zero and the first frequency if the requested n_pg is negative.
     """
     if n_pg >= 0 :
         choice = -1
     else :
         choice = 0
-    return tracks["freqs"][(tracks["ls"]==l) & (tracks["ms"]==m) & (tracks["n_pgs"]==n_pg),:,(tracks["frots_rel"]==frot_rel)][choice]
+    return tracks["freqs"][(tracks["ls"]==l) & (tracks["ms"]==m) & \
+                           (tracks["n_pgs"]==n_pg), :, \
+                           (tracks["frots_rel"]==frot_rel)][choice]
 
 
 def get_mode_frequency_model(model, l, m, n_pg) :
     """
-    Extract the frequency of a mode with the given degree, azimuthal order and radial order from the model dictionary.
-    If the given identity is not in the model, np.nan is returned
+    Extract the frequency of a mode with the given degree, azimuthal order and 
+    radial order from the model dictionary. If the given identity is not in the 
+    model, np.nan is returned
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     model: dict
-        The dictionary describing the particular model as created by interpolate_track_to_model
+        The dictionary describing the particular model as created by 
+        interpolate_track_to_model
     l: int
         Degree of the mode
     m: int
@@ -246,10 +280,12 @@ def get_mode_frequency_model(model, l, m, n_pg) :
 
     ------- Returns -------
     freq: float
-        The model frequency of the given identity in cycles per day. Note that this can be a NaN!
+        The model frequency of the given identity in cycles per day. NaN if not
+        available
     """
     try :
-        return model["freqs"][(model["ls"]==l) & (model["n_pgs"]==n_pg) & (model["ms"]==m)][0]
+        return model["freqs"][(model["ls"]==l) & (model["n_pgs"]==n_pg) & 
+                              (model["ms"]==m)][0]
     except IndexError :
         return np.nan
 
@@ -263,7 +299,8 @@ def get_mode_splitting_model(model, l, m, n_pg) :
 
     ------- Parameters -------
     model: dict
-        The dictionary describing the particular model as created by interpolate_track_to_model
+        The dictionary describing the particular model as created by 
+        interpolate_track_to_model
     l: int
         Degree of the mode
     m: int
@@ -273,9 +310,9 @@ def get_mode_splitting_model(model, l, m, n_pg) :
 
     ------- Returns -------
     splitting: float
-        The difference between the predicted mode with the given ID and the corresponding zonal
-        mode in cycles per day.
-        Will be np.nan if either the given ID or zonal ID is not in the model.
+        The difference between the predicted mode with the given ID and the 
+        corresponding zonal mode in cycles per day. Will be np.nan if either the 
+        given ID or zonal ID is not in the model.
     """
     assert m != 0
     freq = get_mode_frequency_model(model, l, m, n_pg)
@@ -286,18 +323,20 @@ def get_mode_splitting_model(model, l, m, n_pg) :
 
 
 
-##### INTERPOLATION #########################################################################
+##### INTERPOLATION ############################################################
 
 
 def age_to_Xc(tracks, age) :
     """
-    Find the central hydrogen fraction at a given age by interpolating the history output
+    Find the central hydrogen fraction at a given age by interpolating the 
+    history output
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     tracks: dict
-        The dictionary summarising the StORM output of a MESA run as created by read_storm_tracks
+        The dictionary summarising the StORM output of a MESA run as created by 
+        read_storm_tracks
     age: float
         The age in years to which to interpolate
 
@@ -306,27 +345,33 @@ def age_to_Xc(tracks, age) :
         Interpolated central hydrogen fraction
 
     """
-    # history_age = io.read_MESA_history_column(tracks["histfile"], "star_age", dtype=float, Xc_min=tracks["Xc_min"], Xc_max=tracks["Xc_max"], flip=False)
-    # history_Xc = io.read_MESA_history_column(tracks["histfile"], "center_h1", dtype=float, Xc_min=tracks["Xc_min"], Xc_max=tracks["Xc_max"], flip=False)
-    history_age, history_Xc = io.read_MESA_history_columns(tracks["histfile"], ["star_age", "center_h1"], Xc_min=tracks["Xc_min"], Xc_max=tracks["Xc_max"], flip=False)
-    spline = scint.CubicSpline(history_age, history_Xc, extrapolate=False)
+    hist_age, hist_Xc = io.read_MESA_history_columns(tracks["histfile"], 
+                                                     ["star_age", "center_h1"], 
+                                                     Xc_min=tracks["Xc_min"], 
+                                                     Xc_max=tracks["Xc_max"], 
+                                                     flip=False)
+    spline = scint.CubicSpline(hist_age, hist_Xc, extrapolate=False)
     Xc = float(spline(age, extrapolate=False))
     if Xc < tracks["Xc_min"] or Xc > tracks["Xc_max"] :
-        print("age_to_Xc: Xc outside of limits in", tracks["histfile"], " : ",  Xc)
+        print("age_to_Xc: Xc outside of limits in", tracks["histfile"], 
+              " : ",  Xc)
     return Xc
 
 
 def find_age_cross_zonal_mode(tracks, n_pg, freq_obs, l=0, frot_rel=0.00) :
     """
-    Look for the age at which a given observed frequency of a radial mode crosses the interpolated track of given radial order
-    In case there are multiple crossings, we assume the most likely one is where the derivative of the radial frequency to time
-    is the smallest, since it is more likely to see a star at that point.  
+    Look for the age at which a given observed frequency of a radial mode 
+    crosses the interpolated track of given radial order. In case there are 
+    multiple crossings, we assume the most likely one is where the derivative of 
+    the radial frequency to time is the smallest, since it is more likely to see 
+    a star at that point.  
     
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     tracks: dict
-        The dictionary summarising the StORM output of a MESA run as created by read_storm_tracks
+        The dictionary summarising the StORM output of a MESA run as created by 
+        read_storm_tracks
     n_pg: int
         Radial order of the mode
     freq_obs: float
@@ -335,21 +380,25 @@ def find_age_cross_zonal_mode(tracks, n_pg, freq_obs, l=0, frot_rel=0.00) :
         Degree of the mode. 
         Defaults to 0
     frot_rel: float
-        The rotation rate relative to the Keplerian critical rotation rate of the track to use.
+        The rotation rate relative to the Keplerian critical rotation rate of 
+        the track to use.
         
     ------- Returns -------
     root: float
-        Central hydrogen fraction at which the observed frequency crosses the track. If there are multiple
-        crossing points for a radial mode, that indicates there is a second crossing around or just after the TAMS.
+        Central hydrogen fraction at which the observed frequency crosses the 
+        track. If there are multiple crossing points for a radial mode, that 
+        indicates there is a second crossing around or just after the TAMS.
         In that case we pick the one with the largest central hydrogen fraction.
-        np.nan if no crossing point is found in the frequency range covered by this track.
+        np.nan if no crossing point is found in the frequency range covered by 
+        this track.
     """
     freq_track = get_frequency_track(tracks, l, 0, n_pg, frot_rel=frot_rel)
     ages = tracks["ages"]
     ages = ages[~np.isnan(freq_track)]
     freq_track = freq_track[~np.isnan(freq_track)]
     freq_track -= freq_obs
-    # Interim solution. Later on, I might add a check on Xc_interp to only include points between closely spaced freq_track
+    # Interim solution. Later on, I might add a check on Xc_interp to only 
+    # include points between closely spaced freq_track
     if len(ages) < 2 :
         return np.nan
     spline = scint.CubicSpline(ages, freq_track, extrapolate=False)
@@ -363,16 +412,20 @@ def find_age_cross_zonal_mode(tracks, n_pg, freq_obs, l=0, frot_rel=0.00) :
     return roots[np.argmin(abs(derivatives_at_roots))]
 
 
-def interpolate_frequency_track(tracks, l, m, n_pg, frot_rel=0.00, Xc_min=1e-4, Xc_max=0.702, N_interp=1000) :
+def interpolate_frequency_track(tracks, l, m, n_pg, frot_rel=0.00, Xc_min=1e-4, 
+                                Xc_max=0.702, N_interp=1000) :
     """
-    Cubic interpolation of a track of frequencies of the mode with the given identity. This does not do any extrapolation,
-    the interpolated frequencies outside the range between the smallest and largest Xc at which the frequency is not NaN are always NaN.
+    Cubic interpolation of a track of frequencies of the mode with the given 
+    identity. This does not do any extrapolation, the interpolated frequencies 
+    outside the range between the smallest and largest Xc at which the frequency 
+    is not NaN are always NaN.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     tracks: dict
-        The dictionary summarising the StORM output of a MESA run as created by read_storm_tracks
+        The dictionary summarising the StORM output of a MESA run as created by 
+        read_storm_tracks
     l: int
         Degree of the mode
     m: int
@@ -380,7 +433,8 @@ def interpolate_frequency_track(tracks, l, m, n_pg, frot_rel=0.00, Xc_min=1e-4, 
     n_pg: int
         Radial order of the mode
     frot_rel: float
-        Rotation rate relative to critical of the track. Must be in tracks["frot_rel"]
+        Rotation rate relative to critical of the track. Must be in 
+        tracks["frot_rel"]
         Defaults to 0.00
     Xc_min: float
         Smallest hydrogen fraction to which to interpolate
@@ -396,7 +450,8 @@ def interpolate_frequency_track(tracks, l, m, n_pg, frot_rel=0.00, Xc_min=1e-4, 
     Xc_interp: numpy.array of floats
         The central hydrogen fractions at which the frequency is interpolated
     freqs_interp: numpy.array of floats
-        The interpolated frequency. Will equal NaN if outside the frequency range of the original track
+        The interpolated frequency. Will equal NaN if outside the frequency 
+        range of the original track
     """
     assert Xc_min < Xc_max
     assert N_interp > 0
@@ -405,41 +460,49 @@ def interpolate_frequency_track(tracks, l, m, n_pg, frot_rel=0.00, Xc_min=1e-4, 
     freq_track = get_frequency_track(tracks, l, m, n_pg, frot_rel=frot_rel)
     Xcs = Xcs[~np.isnan(freq_track)]
     freq_track = freq_track[~np.isnan(freq_track)]
-    # Interim solution. Later on add a check on Xc_interp to only include points between closely spaced freq_track
+    # Interim solution. Later on add a check on Xc_interp to only include points 
+    # between closely spaced freq_track
     if len(Xcs) < 2 :
         a = np.empty(N_interp)
         a[:] = np.nan
         freqs_interp = a
         return Xcs, freqs_interp
-    spline = scint.CubicSpline(np.flip(Xcs), np.flip(freq_track), extrapolate=False)
+    spline = scint.CubicSpline(np.flip(Xcs), np.flip(freq_track), 
+                               extrapolate=False)
     freqs_interp = spline(Xc_interp)
     return Xc_interp, freqs_interp
 
 
 def interpolate_history_columns_in_age(tracks, age, column_names) :
     """
-    Find the values of the given MESA history columns at the given age by interpolating the history output
+    Find the values of the given MESA history columns at the given age by 
+    interpolating the history output
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     tracks: dict
-        The dictionary summarising the StORM output of a MESA run as created by read_storm_tracks
+        The dictionary summarising the StORM output of a MESA run as created by 
+        read_storm_tracks
     age: float
         The age in years to which to interpolate
     column_names: list of string
-        The history columns to interpolate to. Each string must be a column in the MESA history output. 
+        The history columns to interpolate to. Each string must be a column in 
+        the MESA history output. 
 
     ------- Returns -------
     interpolated_columns: list of floats
-        History columns interpolated to the given age, with the i'th element of this list corresponding to the
-        i'th history column name in columns. Each element will be np.nan if age lies outside of the age range 
-        covered between Xc_min and Xc_max of the tracks.
-        Note that each element is converted to float.
+        History columns interpolated to the given age, with the i'th element of 
+        this list corresponding to the i'th history column name in columns. Each 
+        element will be np.nan if age lies outside of the age range covered 
+        between Xc_min and Xc_max of the tracks. Each element is converted to 
+        float.
 
     """
     column_names.append("star_age")
-    columns = io.read_MESA_history_columns(tracks["histfile"], column_names, Xc_min=tracks["Xc_min"], Xc_max=tracks["Xc_max"], flip=False)
+    columns = io.read_MESA_history_columns(tracks["histfile"], column_names, 
+                                           Xc_min=tracks["Xc_min"], 
+                                           Xc_max=tracks["Xc_max"], flip=False)
     history_age = columns[-1]
     interpolated_columns = []
     for column in columns[:-1] :
@@ -450,23 +513,26 @@ def interpolate_history_columns_in_age(tracks, age, column_names) :
 
 def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
     """
-    Get a new model with frequencies interpolated to the rotation frequency best matching the 
-    provided observed splittings. This optimal rotation rate is computed from the mean splitting
-    of all multiplets and the Ledoux constants computed with GYRE on a non-rotating model. 
-    Subsequently, the model only contains a first order approximation of rotational splitting. 
-    models also only needs to contain one model with frot==0.0 . To achieve this, set 
+    Get a new model with frequencies interpolated to the rotation frequency best 
+    matching the provided observed splittings. This optimal rotation rate is 
+    computed from the mean splitting of all multiplets and the Ledoux constants 
+    computed with GYRE on a non-rotating model. Subsequently, the model only 
+    contains a first order approximation of rotational splitting. Models also 
+    only needs to contain one model with frot==0.0 . To achieve this, set 
     frot_rels_to_include = [0.00]
-    NOT RECOMMENDED, USE interpolate_models_in_frot_with_StORM INSTEAD!
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
 
     observation: dict
-        The dictionary describing all the observations of a star as defined in create_observation_dict  
+        The dictionary describing all the observations of a star as defined in 
+        create_observation_dict  
     model_nonRot: dicts
-        One model with rotation rate of zero as created by interpolate_track_to_model_in_age of the same evolutionary track at different rotation rates
-        The model should also contain the beta of each multiplet
+        One model with rotation rate of zero as created by 
+        interpolate_track_to_model_in_age of the same evolutionary track at 
+        different rotation rates. The model should also contain the beta of each 
+        multiplet
 
     ------- Returns -------
 
@@ -480,7 +546,8 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
         "Xc_max": float
             Largest hydrogen fraction to which to interpolate
         "frot_rel_best": float
-            Best matching rotation frequency relative to the critical rotation frequency
+            Best matching rotation frequency relative to the critical rotation 
+            frequency
         "frot_best": float
             Best matching rotation frequency in cycles per day
         "ls": numpy.array of ints
@@ -493,14 +560,18 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
             Radial orders of the modes
             array length equals K
         "freqs": numpy.array of floats
-            Frequency in c/d for each mode identity in ls and n_pgs, interpolated to Xc
+            Frequency in c/d for each mode identity in ls and n_pgs, 
+            interpolated to Xc
             array length equals K
         "log_Teff": float
-            Base 10 logarithm of the effective temperature of the MESA model, interpolated to Xc
+            Base 10 logarithm of the effective temperature of the MESA model, 
+            interpolated to Xc
         "log_L": float
-            Base 10 logarithm of the luminosity of the MESA model, interpolated to Xc
+            Base 10 logarithm of the luminosity of the MESA model, interpolated 
+            to Xc
         "MESA_model_dir": string
-            Path to the directory containing the output of this particular MESA run
+            Path to the directory containing the output of this particular MESA 
+            run
         "histfile": string
             Path to the history file of this MESA model
         with K the number of mode identities.
@@ -508,20 +579,24 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
 
     model_best_frot = {}
     # Copy over the basics that should remain constant with the non-rotating model
-    for key in ["Xc_min", "Xc_max", "MESA_model_dir", "histfile", "age", "Xc", "log_Teff", "log_L", "ls", "ms", "n_pgs", "betas"] :
+    for key in ["Xc_min", "Xc_max", "MESA_model_dir", "histfile", "age", "Xc", 
+                "log_Teff", "log_L", "ls", "ms", "n_pgs", "betas"] :
         model_best_frot[key] = model_nonRot[key]
 
     if np.isnan(model_nonRot["freqs"]).all() :
         # No workable solutions. Set everything to nan and send it out the door. 
         model_best_frot["frot_best"], model_best_frot["frot_rel_best"] = np.nan, np.nan
-        model_best_frot["age"], model_best_frot["Xc"], model_best_frot["log_Teff"], model_best_frot["log_L"] = np.nan, np.nan, np.nan, np.nan
+        model_best_frot["age"], model_best_frot["Xc"] = np.nan, np.nan
+        model_best_frot["log_Teff"], model_best_frot["log_L"] = np.nan, np.nan
         model_best_frot["freqs"] = np.array([np.nan]*len(model_best_frot["ls"]))
         return model_best_frot
 
     assert model_nonRot["frot"] == 0.0
 
     freqs_zonal, ls_zonal, n_pgs_zonal, betas_zonal = [], [], [], []
-    for freq, l, m, n, beta in zip(model_nonRot["freqs"], model_nonRot["ls"], model_nonRot["ms"], model_nonRot["n_pgs"], model_nonRot["betas"]) :
+    for freq, l, m, n, beta in zip(model_nonRot["freqs"], model_nonRot["ls"], 
+                                   model_nonRot["ms"], model_nonRot["n_pgs"], 
+                                   model_nonRot["betas"]) :
         if not m == 0 :
             continue
         freqs_zonal.append(freq)
@@ -531,44 +606,36 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
 
     # Find the mean splitting of each observed multiplet
     ms_abs_all, splittings_all, splittings_err_all, betas_all = [], [], [], []
-    for l, freq, splittings, splittings_err in zip(observation["ls"], observation["freqs"], observation["splittings"], observation["splittings_err"]) :
+    for l, freq, splittings, splittings_err in zip(observation["ls"], 
+                                                   observation["freqs"], 
+                                                   observation["splittings"], 
+                                                   observation["splittings_err"]) :
         i = 0
         if l == 0 :
             continue
 
         # Find the beta of each multiplet
-        # Find the radial order of the zonal mode with identical l nearest in frequency
-        n_pg_min = 999 # Some random filler value sure to cause an error if not replaced
+        # Find the radial order of the zonal mode with identical l nearest in zonal frequency
+        n_pg_min = 999 # Some random big filler value
         distance_min = sys.float_info.max
         for n_pg in np.array(n_pgs_zonal)[(np.array(ls_zonal) == l)] :
             distance = abs(get_mode_frequency_model(model_nonRot, l, 0, n_pg) - freq)
             if distance < distance_min :
                 distance_min = distance
                 n_pg_min = n_pg
-        # Get the accompanying beta_nl
-        # if l == 0 :
-        #     beta = np.nan
-        # elif n_pg >= 4 :
-        #     beta = 1.0
-        # else :
         if n_pg_min == 999 :
             # No workable solutions. Set everything to nan and send it out the door. 
             model_best_frot["frot_best"], model_best_frot["frot_rel_best"] = np.nan, np.nan
-            model_best_frot["age"], model_best_frot["Xc"], model_best_frot["log_Teff"], model_best_frot["log_L"] = np.nan, np.nan, np.nan, np.nan
+            model_best_frot["age"], model_best_frot["Xc"] = np.nan, np.nan
+            model_best_frot["log_Teff"], model_best_frot["log_L"] = np.nan, np.nan
             model_best_frot["freqs"] = np.array([np.nan]*len(model_best_frot["ls"]))
             return model_best_frot
 
         try :
-            beta = np.array(betas_zonal)[(np.array(ls_zonal) == l) & (np.array(n_pgs_zonal) == n_pg_min)][0]
+            beta = np.array(betas_zonal)[(np.array(ls_zonal) == l) & 
+                                         (np.array(n_pgs_zonal) == n_pg_min)][0]
         except IndexError :
-            print(l, n_pg_min, freq, np.array(freqs_zonal)[(np.array(ls_zonal) == l)])
-            print(model_nonRot)
-            print(ls_zonal)
-            print(n_pgs_zonal)
-            print(betas_zonal)
-            print()
             raise Exception("no matching beta found")
-        # beta = np.array(betas_zonal)[(np.array(ls_zonal) == l) & (np.array(n_pgs_zonal) == n_pg_min)][0]
 
         for m in range(-l, l+1) :
             if m == 0 :
@@ -586,8 +653,9 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
     splittings_err_all = np.array(splittings_err_all)
     betas_all = np.array(betas_all)
 
-    # Search for the rotation rate where the mean splittings are reproduced as best as possible
-    frot_best = np.sum(abs(ms_abs_all) * betas_all * splittings_all / splittings_err_all**2) / np.sum((ms_abs_all * betas_all / splittings_err_all)**2)
+    # Find the rotation frequency optimally reproducing all rotational splitting
+    frot_best = np.sum(abs(ms_abs_all) * betas_all * splittings_all / splittings_err_all**2) / \
+                np.sum((ms_abs_all * betas_all / splittings_err_all)**2)
 
     # Add the (relative) rotation to the final model
     model_best_frot["frot_best"] = frot_best
@@ -595,7 +663,9 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
 
     # Compute all the predicted non-zonal modes in the model
     freqs = model_nonRot["freqs"]
-    for i, (freq, l, m, beta) in enumerate(zip(freqs, model_nonRot["ls"], model_nonRot["ms"], model_nonRot["betas"])) :
+    for i, (freq, l, m, beta) in enumerate(zip(freqs, model_nonRot["ls"], 
+                                               model_nonRot["ms"], 
+                                               model_nonRot["betas"])) :
         if not l == 0 :
             freqs[i] = freq + m*beta*frot_best
     model_best_frot["freqs"] = np.array(freqs)
@@ -605,12 +675,12 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
 
 def interpolate_models_in_frot_with_StORM(observation, models) :
     """
-    RECOMMENDED OVER interpolate_model_in_frot_with_GYRE
-    Get a new model with frequencies interpolated to the rotation frequency best matching the 
-    provided observed splittings. Herein the optimal rotation frequency is found by comparing
-    all observed, identified rotational splitting to their predicted counterparts for each 
-    provided model. Then we compute the chi2 for each model and search for the minimum using
-    cubic interpolation. Finally, we linearly interpolate all frequencies and stellar 
+    Get a new model with frequencies interpolated to the rotation frequency best 
+    matching the provided observed splittings. Herein the optimal rotation 
+    frequency is found by comparing all observed, identified rotational 
+    splitting to their predicted counterparts for each provided model. Then we 
+    compute the chi2 for each model and search for the minimum using cubic 
+    interpolation. Finally, we linearly interpolate all frequencies and stellar 
     parameters to that rotation rate.
 
     Author: Mathijs Vanrespaille
@@ -618,9 +688,11 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
     ------- Parameters -------
 
     observation: dict
-        The dictionary describing all the observations of a star as defined in create_observation_dict  
+        The dictionary describing all the observations of a star as defined in 
+        create_observation_dict  
     models: list of dicts
-        Models as created by interpolate_track_to_model_in_age of the same evolutionary track at different rotation rates
+        Models as created by interpolate_track_to_model_in_age of the same 
+        evolutionary track at different rotation rates
 
     ------- Returns -------
 
@@ -634,7 +706,8 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
         "Xc_max": float
             Largest hydrogen fraction to which to interpolate
         "frot_rel_best": float
-            Best matching rotation frequency relative to the critical rotation frequency
+            Best matching rotation frequency relative to the critical rotation 
+            frequency
         "frot_best": float
             Best matching rotation frequency in cycles per day
         "ls": numpy.array of ints
@@ -647,26 +720,31 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
             Radial orders of the modes
             array length equals K
         "freqs": numpy.array of floats
-            Frequency in c/d for each mode identity in ls and n_pgs, interpolated to Xc
+            Frequency in c/d for each mode identity in ls and n_pgs, 
+            interpolated to Xc
             array length equals K
         "log_Teff": float
-            Base 10 logarithm of the effective temperature of the MESA model, interpolated to Xc
+            Base 10 logarithm of the effective temperature of the MESA model, 
+            interpolated to Xc
         "log_L": float
-            Base 10 logarithm of the luminosity of the MESA model, interpolated to Xc
+            Base 10 logarithm of the luminosity of the MESA model, interpolated 
+            to Xc
         "MESA_model_dir": string
-            Path to the directory containing the output of this particular MESA run
+            Path to the directory containing the output of this particular MESA 
+            run
         "histfile": string
             Path to the history file of this MESA model
         with K the number of mode identities.
     """
     model_best_frot = {}
     # Copy over the things that should remain constant across all models
-    for key in ["Xc_min", "Xc_max", "ls", "ms", "n_pgs", "MESA_model_dir", "histfile"] :
+    for key in ("Xc_min", "Xc_max", "ls", "ms", "n_pgs", "MESA_model_dir", 
+                "histfile") :
         model_best_frot[key] = models[0][key]
 
     # Extract the quantities to interpolate from all the models:
     #   age, Xc, Teff, L, all the frequencies. And frot & frot_rel of course!
-    ages, Xcs, log_Teffs, log_Ls, all_freqs, frots, frots_rel = [], [], [], [], [], [], []
+    ages,Xcs,log_Teffs,log_Ls,all_freqs,frots,frots_rel = [],[],[],[],[],[],[]
     for model in models :
         ages.append(model["age"])
         Xcs.append(model["Xc"])
@@ -699,7 +777,8 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
     frots = np.array(frots)[I]
     frots_rel = np.array(frots_rel)[I]
 
-    # Find the rotation producing the smallest chi2 in splitting around the selected zonal frequency.
+    # Find the rotation producing the smallest chi2 in splitting around the 
+    # selected zonal frequency.
     chi2s = np.zeros(len(frots))
     chi2s_left = np.zeros(len(frots))
     chi2s_right = np.zeros(len(frots))
@@ -711,18 +790,21 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
         observation_splittings = observation["splittings"][k]
         observation_splittings_err = observation["splittings_err"][k]
 
-        # Find the zonal frequency with the correct degree closest to the observed frequency
-        n_pg_min = 999 # Some random filler value sure to cause an error if not replaced
+        # Find the zonal frequency with the correct degree closest to the 
+        # observed frequency
+        n_pg_min = 999 # Some random big filler value
         distance_min = sys.float_info.max
         for n_pg in model["n_pgs"][(model["ls"] == l) & (model["ms"] == 0)] :
-            distance = abs(get_mode_frequency_model(model, l, 0, n_pg) - observation_freq_m0)
+            distance = abs(get_mode_frequency_model(model, l, 0, n_pg) - 
+                           observation_freq_m0)
             if distance < distance_min :
                 distance_min = distance
                 n_pg_min = n_pg
 
         # Get the predicted splitting at each frot and add them to the chi
         m = -l
-        for observation_split, observation_split_err in zip(observation_splittings, observation_splittings_err) :
+        for observation_split,observation_split_err in zip(observation_splittings,
+                                                           observation_splittings_err) :
             # Skip zonal mode, already taken care of
             if m == 0 :
                 m += 1
@@ -731,14 +813,17 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
                 m += 1
                 continue
             for i in I :
-                chi2 = (get_mode_splitting_model(models[i], l, m, n_pg_min) - observation_split)**2 / observation_split_err**2
+                chi2 = (get_mode_splitting_model(models[i], l, m, n_pg_min) - \
+                        observation_split)**2 / observation_split_err**2
                 chi2s[i] += chi2
                 if m == -1 :
                     chi2s_left[i] += chi2
-                    splittings_left[i] = get_mode_splitting_model(models[i], l, m, n_pg_min)
+                    splittings_left[i] = get_mode_splitting_model(models[i], l, 
+                                                                  m, n_pg_min)
                 if m == 1 :
                     chi2s_right[i] += chi2
-                    splittings_right[i] = get_mode_splitting_model(models[i], l, m, n_pg_min)
+                    splittings_right[i] = get_mode_splitting_model(models[i], l, 
+                                                                   m, n_pg_min)
             # Update azimuthal order
             m += 1
 
@@ -746,20 +831,23 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
     if np.isnan(chi2s).all() or np.sum(toKeep) < 4 :
         # No workable solutions. Set everything to nan and send it out the door. 
         model_best_frot["frot_best"], model_best_frot["frot_rel_best"] = np.nan, np.nan
-        model_best_frot["age"], model_best_frot["Xc"], model_best_frot["log_Teff"], model_best_frot["log_L"] = np.nan, np.nan, np.nan, np.nan
+        model_best_frot["age"], model_best_frot["Xc"] = np.nan, np.nan
+        model_best_frot["log_Teff"], model_best_frot["log_L"] = np.nan, np.nan
         model_best_frot["freqs"] = np.array([np.nan]*len(model_best_frot["ls"]))
         return model_best_frot
 
     # Look for where the minimum roughly is
     frot_min = frots[np.nanargmin(chi2s)]
-    # Get the spline, its derivative and find the root of said derivative, which should correspond to the minimum. 
+    # Get the spline, its derivative and find the root of said derivative, which 
+    # should correspond to the minimum. 
     spline = scint.CubicSpline(frots[toKeep], chi2s[toKeep], extrapolate=False)
     derivative = spline.derivative(nu=1)
     roots = derivative.roots(extrapolate=False)
     if len(roots) == 0 or np.sum(~np.isnan(roots)) == 0 :
         frot_best = frot_min
     elif np.isnan(frot_min) :
-        frot_best = 0.0 # Not sure how to handle these, so I'll just kill off the rotation completely.
+        # Not sure how to handle these, so just kill off the rotation completely
+        frot_best = 0.0 
     else :
         frot_best = roots[np.nanargmin(abs(roots - frot_min))]
     # Add frot and frot_rel (scaled by the last values) to the model dictionary
@@ -768,40 +856,49 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
 
     model_best_frot["age"] = np.interp(frot_best, frots[toKeep], ages[toKeep])
     model_best_frot["Xc"] = np.interp(frot_best, frots[toKeep], Xcs[toKeep])
-    model_best_frot["log_Teff"] = np.interp(frot_best, frots[toKeep], log_Teffs[toKeep])
-    model_best_frot["log_L"] = np.interp(frot_best, frots[toKeep], log_Ls[toKeep])
+    model_best_frot["log_Teff"] = np.interp(frot_best, frots[toKeep], 
+                                            log_Teffs[toKeep])
+    model_best_frot["log_L"] = np.interp(frot_best, frots[toKeep], 
+                                         log_Ls[toKeep])
 
     # Treat freqs separately as they are lists instead of floats
     freqs_interp = []
     for j in range(len(model_best_frot["ls"])) :
-        freq_track = all_freqs[:,j] # Each model should have the same l, m, n_pg in the same order
+        # Each model should have the same l, m, n_pg in the same order
+        freq_track = all_freqs[:,j] 
         toKeep = [~np.isnan(freq_track)][0]
-        if np.sum(toKeep) <= 2 or np.min(abs(frots_rel[toKeep] - frot_best/model["f_K"])) > 0.03 :
+        if np.sum(toKeep) <= 2 or np.min(abs(frots_rel[toKeep] - \
+                                             frot_best/model["f_K"])) > 0.03 :
             freqs_interp.append(np.nan)
             continue
-        freqs_interp.append(np.interp(frot_best, frots[toKeep], freq_track[toKeep]))
+        freqs_interp.append(np.interp(frot_best, frots[toKeep], 
+                                      freq_track[toKeep]))
     model_best_frot["freqs"] = np.array(freqs_interp)
 
     return model_best_frot
 
 
-def interpolate_track_to_model_in_age(tracks, age, frot_rel=0.00, add_beta=False) :
+def interpolate_track_to_model_in_age(tracks, age, frot_rel=0.00, 
+                                      add_beta=False) :
     """
-    Get a dictionary describing a model interpolated to the given central hydrogen fraction of the 
-    given relative rotation frequency
+    Get a dictionary describing a model interpolated to the given central 
+    hydrogen fraction of the given relative rotation frequency
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     tracks: dict
-        The dictionary summarising the StORM output of a MESA run as created by read_storm_tracks
+        The dictionary summarising the StORM output of a MESA run as created by 
+        read_storm_tracks
     age: float
         The age in years to which to interpolate
     frot_rel: float
-        The rotation frequency relative to the Keplerian critical rotation frequency
+        The rotation frequency relative to the Keplerian critical rotation 
+        frequency
         Defaults to zero
     add_beta: bool 
-        Whether to include the beta_nl constant from GYRE for each multiplet in the model
+        Whether to include the beta_nl constant from GYRE for each multiplet in 
+        the model
         Defaults to False
 
     ------- Returns -------
@@ -830,14 +927,18 @@ def interpolate_track_to_model_in_age(tracks, age, frot_rel=0.00, add_beta=False
             Radial orders of the modes
             array length equals K
         "freqs": numpy.array of floats
-            Frequency in c/d for each mode identity in ls and n_pgs, interpolated to Xc
+            Frequency in c/d for each mode identity in ls and n_pgs, 
+            interpolated to Xc
             array length equals K
         "log_Teff": float
-            Base 10 logarithm of the effective temperature of the MESA model, interpolated to Xc
+            Base 10 logarithm of the effective temperature of the MESA model, 
+            interpolated to Xc
         "log_L": float
-            Base 10 logarithm of the luminosity of the MESA model, interpolated to Xc
+            Base 10 logarithm of the luminosity of the MESA model, interpolated 
+            to Xc
         "MESA_model_dir": string
-            Path to the directory containing the output of this particular MESA run
+            Path to the directory containing the output of this particular MESA 
+            run
         "histfile": string
             Path to the history file of this MESA model
         "betas": numpy array of floats
@@ -846,13 +947,19 @@ def interpolate_track_to_model_in_age(tracks, age, frot_rel=0.00, add_beta=False
             Only included if add_beta is True
         with K the number of mode identities.
     """
-    model = {"age":age , "ls":tracks["ls"], "ms":tracks["ms"], "n_pgs":tracks["n_pgs"], "Xc_min":tracks["Xc_min"], "Xc_max":tracks["Xc_max"]}
-    history_age, history_Xc, history_log_Teff, history_log_L = io.read_MESA_history_columns(tracks["histfile"], ["star_age", "center_h1", "log_Teff", "log_L"], 
-                                                                                            Xc_min=tracks["Xc_min"], Xc_max=tracks["Xc_max"], flip=False)
-    try :
-        spline = scint.CubicSpline(history_age, history_log_Teff)
-    except ValueError :
-        raise ValueError("history_age in this track does not decrease monotonically.")
+    model = {"age":age , 
+             "ls":tracks["ls"], "ms":tracks["ms"], "n_pgs":tracks["n_pgs"], 
+             "Xc_min":tracks["Xc_min"], "Xc_max":tracks["Xc_max"]}
+    history_age, history_Xc, history_log_Teff, history_log_L = \
+        io.read_MESA_history_columns(tracks["histfile"], 
+                                     ["star_age", "center_h1", "log_Teff", "log_L"], 
+                                     Xc_min=tracks["Xc_min"], 
+                                     Xc_max=tracks["Xc_max"], 
+                                     flip=False)
+    # try :
+    spline = scint.CubicSpline(history_age, history_log_Teff)
+    # except ValueError :
+    #     raise ValueError("history_age in this track does not decrease monotonically.")
     model["log_Teff"] = float(spline(age, extrapolate=False))
     spline = scint.CubicSpline(history_age, history_log_L)
     model["log_L"] = float(spline(age, extrapolate=False))
@@ -868,9 +975,12 @@ def interpolate_track_to_model_in_age(tracks, age, frot_rel=0.00, add_beta=False
         freq_track = get_frequency_track(tracks, l, m, n_pg, frot_rel=frot_rel)
         ages_noNan = ages[~np.isnan(freq_track)]
         Xcs_noNan = Xcs[~np.isnan(freq_track)]
-        # If there is no output within 5% Xc, the interpolation would be so unreliable as to be virtually useless, so we manually add a NaN
-        # Likewise, if all (but one) freqs are NaN, add a NaN as the interpolated frequency
-        if (len(ages_noNan) <= 1) or (np.nanmin(abs(Xcs_noNan - model["Xc"])) > 0.05) :
+        # If there is no output within 5% Xc, the interpolation would be so 
+        # unreliable as to be virtually useless, so we manually add a NaN
+        # Likewise, if all (but one) freqs are NaN, add a NaN as the 
+        # interpolated frequency
+        if (len(ages_noNan) <= 1) or \
+           (np.nanmin(abs(Xcs_noNan - model["Xc"])) > 0.05) :
             freqs_interp.append(np.nan)
             continue
         freq_track = freq_track[~np.isnan(freq_track)]
@@ -899,13 +1009,15 @@ def interpolate_track_to_model_in_age(tracks, age, frot_rel=0.00, add_beta=False
 
 def Xc_to_age(tracks, Xc) :
     """
-    Find the age at a given central hydrogen fraction by interpolating the history output
+    Find the age at a given central hydrogen fraction by interpolating the 
+    history output
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     tracks: dict
-        The dictionary summarising the StORM output of a MESA run as created by read_storm_tracks
+        The dictionary summarising the StORM output of a MESA run as created by 
+        read_storm_tracks
     Xc: float
         The central hydrogen fraction to which to interpolate
 
@@ -914,31 +1026,35 @@ def Xc_to_age(tracks, Xc) :
         Interpolated age in years
 
     """
-    # history_age = io.read_MESA_history_column(tracks["histfile"], "star_age", dtype=float, Xc_min=tracks["Xc_min"], Xc_max=tracks["Xc_max"], flip=False)
-    # history_Xc = io.read_MESA_history_column(tracks["histfile"], "center_h1", dtype=float, Xc_min=tracks["Xc_min"], Xc_max=tracks["Xc_max"], flip=False)
-    history_age, history_Xc = io.read_MESA_history_columns(tracks["histfile"], ["star_age", "center_h1"], 
-                                                           Xc_min=tracks["Xc_min"], Xc_max=tracks["Xc_max"], flip=True)
+    history_age, history_Xc = io.read_MESA_history_columns(tracks["histfile"], 
+                                                           ["star_age", "center_h1"], 
+                                                           Xc_min=tracks["Xc_min"], 
+                                                           Xc_max=tracks["Xc_max"], 
+                                                           flip=True)
     spline = scint.CubicSpline(history_Xc, history_age)
     age = float(spline(Xc, extrapolate=False))
     return age
 
 
 
-##### MODEL QUALITY FUNCTIONS #########################################################################
+##### MODEL QUALITY FUNCTIONS ##################################################
 
 
 def AIC(observation, model, Nfit=5) :
-    """Computes the Akaike Information Criterion of the provided model given the provided
-    observations.
+    """
+    Computes the Akaike Information Criterion of the provided model given the 
+    provided observations.
 
     Author: Mathijs Vanrespaille, drawing from Luc IJspeert
 
     ------- Parameters -------
     observation: dict
-        The dictionary describing all the observations of a star as defined in create_observation_dict
+        The dictionary describing all the observations of a star as defined in 
+        create_observation_dict
     model: dict
-        The dictionary describing the particular model as created by interpolate_track_to_model
-    Nfit : int
+        The dictionary describing the particular model as created by 
+        interpolate_track_to_model
+    Nfit: int
         Number of fit parameters.
         Defaults to 5 (for Xc, frot, M, logD and fov)
 
@@ -949,31 +1065,33 @@ def AIC(observation, model, Nfit=5) :
     Notes
     -----
     AIC = −2 ln(L(θ)) + 2 k
-    where L is the likelihood as function of the parameters θ, n the number of data points
-    and k the number of free parameters.
+    where L is the likelihood as function of the parameters θ and k the number 
+    of free parameters.
 
     Under the assumption that the errors are independent and distributed
     according to a normal distribution, the likelihood becomes:
     ln(L(θ)) = -sum(ln(sqrt(2 pi) σ) + (y_obs-y_model)^2/(2σ^2)).
     """
-    n = number_observations(observation)
     k = Nfit
-    # aic = n * np.log(2 * np.pi * np.sum(residuals**2) / n) + n + n_param * 2
     aic = k*2
     # Contribution of effective temperature
     if not np.isnan(observation["log_Teff"]) :
         aic += np.log(2*np.pi*observation["log_Teff_err"]**2) + \
-                2*(model["log_Teff"] - observation["log_Teff"])**2 / (2*observation["log_Teff_err"]**2)
+                2*(model["log_Teff"] - observation["log_Teff"])**2 / \
+                    (2*observation["log_Teff_err"]**2)
     # Contribution of luminosity
     if not np.isnan(observation["log_L"]) :
         aic += np.log(2*np.pi*observation["log_L_err"]**2) + \
-                2*(model["log_L"] - observation["log_L"])**2 / (2*observation["log_L_err"]**2)
+                2*(model["log_L"] - observation["log_L"])**2 / \
+                    (2*observation["log_L_err"]**2)
     for l, n_pg, freq, freq_err, splittings, splittings_err in \
-        zip(observation["ls"], observation["n_pgs"], observation["freqs"], observation["freqs_err"], \
+        zip(observation["ls"], observation["n_pgs"], 
+            observation["freqs"], observation["freqs_err"], 
             observation["splittings"], observation["splittings_err"]):
         # Contribution of each zonal frequency
         aic += np.log(2*np.pi*freq_err**2) + \
-                2*(freq - get_mode_frequency_model(model, l, 0, n_pg))**2 / (2*freq_err**2)
+                2*(freq - get_mode_frequency_model(model, l, 0, n_pg))**2 / \
+                    (2*freq_err**2)
         m = -l
         for split, split_err in zip(splittings, splittings_err) :
             # Skip zonal mode, already taken care of
@@ -985,23 +1103,27 @@ def AIC(observation, model, Nfit=5) :
                 continue
             # Contribution of each splitting
             aic += np.log(2*np.pi*split_err**2) + \
-                    2*(freq - get_mode_splitting_model(model, l, m, n_pg))**2 / (2*split_err**2)
+                    2*(freq - get_mode_splitting_model(model, l, m, n_pg))**2 / \
+                        (2*split_err**2)
             # Update azimuthal order
             m += 1
     return aic
 
 
 def AICc(observation, model, Nfit=5) :
-    """Computes the corrected Akaike Information Criterion of the provided model given the provided
-    observations.
+    """
+    Computes the corrected Akaike Information Criterion of the provided model 
+    given the provided observations.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     observation: dict
-        The dictionary describing all the observations of a star as defined in create_observation_dict
+        The dictionary describing all the observations of a star as defined in 
+        create_observation_dict
     model: dict
-        The dictionary describing the particular model as created by interpolate_track_to_model
+        The dictionary describing the particular model as created by 
+        interpolate_track_to_model
     Nfit : int
         Number of fit parameters.
         Defaults to 5 (for Xc, frot, M, logD and fov)
@@ -1013,8 +1135,8 @@ def AICc(observation, model, Nfit=5) :
     Notes
     -----
     AICc = −2 ln(L(θ)) + 2 k + 2 k (k+1) / (n - k - 1)
-    where L is the likelihood as function of the parameters θ, n the number of data points
-    and k the number of free parameters.
+    where L is the likelihood as function of the parameters θ, n the number of 
+    data points and k the number of free parameters.
 
     Under the assumption that the errors are independent and distributed
     according to a normal distribution, the likelihood becomes:
@@ -1027,16 +1149,19 @@ def AICc(observation, model, Nfit=5) :
 
 
 def BIC(observation, model, Nfit=5):
-    """Computes the Bayesian Information Criterion of the provided model given the provided
-    observations.
+    """
+    Computes the Bayesian Information Criterion of the provided model given the 
+    provided observations.
 
     Author: Mathijs Vanrespaille, drawing from Luc IJspeert
 
     ------- Parameters -------
     observation: dict
-        The dictionary describing all the observations of a star as defined in create_observation_dict
+        The dictionary describing all the observations of a star as defined in 
+        create_observation_dict
     model: dict
-        The dictionary describing the particular model as created by interpolate_track_to_model
+        The dictionary describing the particular model as created by 
+        interpolate_track_to_model
     Nfit : int
         Number of fit parameters.
         Defaults to 5 (for Xc, frot, M, logD and fov)
@@ -1048,8 +1173,8 @@ def BIC(observation, model, Nfit=5):
     Notes
     -----
     BIC = −2 ln(L(θ)) + k ln(n)
-    where L is the likelihood as function of the parameters θ, n the number of data points
-    and k the number of free parameters.
+    where L is the likelihood as function of the parameters θ, n the number of 
+    data points and k the number of free parameters.
 
     Under the assumption that the errors are independent and distributed
     according to a normal distribution, the likelihood becomes:
@@ -1057,22 +1182,25 @@ def BIC(observation, model, Nfit=5):
     """
     n = number_observations(observation)
     k = Nfit
-    # bic = n * np.log(2 * np.pi * np.sum(residuals**2) / n) + n + n_param * np.log(n)
     bic = k*np.log(n)
     # Contribution of effective temperature
     if not np.isnan(observation["log_Teff"]) :
         bic += np.log(2*np.pi*observation["log_Teff_err"]**2) + \
-                2*(model["log_Teff"] - observation["log_Teff"])**2 / (2*observation["log_Teff_err"]**2)
+                2*(model["log_Teff"] - observation["log_Teff"])**2 / \
+                    (2*observation["log_Teff_err"]**2)
     # Contribution of luminosity
     if not np.isnan(observation["log_L"]) :
         bic += np.log(2*np.pi*observation["log_L_err"]**2) + \
-                2*(model["log_L"] - observation["log_L"])**2 / (2*observation["log_L_err"]**2)
+                2*(model["log_L"] - observation["log_L"])**2 / \
+                    (2*observation["log_L_err"]**2)
     for l, n_pg, freq, freq_err, splittings, splittings_err in \
-        zip(observation["ls"], observation["n_pgs"], observation["freqs"], observation["freqs_err"], \
+        zip(observation["ls"], observation["n_pgs"], 
+            observation["freqs"], observation["freqs_err"], 
             observation["splittings"], observation["splittings_err"]):
         # Contribution of each zonal frequency
         bic += np.log(2*np.pi*freq_err**2) + \
-                2*(freq - get_mode_frequency_model(model, l, 0, n_pg))**2 / (2*freq_err**2)
+                2*(freq - get_mode_frequency_model(model, l, 0, n_pg))**2 / \
+                    (2*freq_err**2)
         m = -l
         for split, split_err in zip(splittings, splittings_err) :
             # Skip zonal mode, already taken care of
@@ -1084,7 +1212,8 @@ def BIC(observation, model, Nfit=5):
                 continue
             # Contribution of each splitting
             bic += np.log(2*np.pi*split_err**2) + \
-                    2*(freq - get_mode_splitting_model(model, l, m, n_pg))**2 / (2*split_err**2)
+                    2*(freq - get_mode_splitting_model(model, l, m, n_pg))**2 / \
+                        (2*split_err**2)
             # Update azimuthal order
             m += 1
     return bic
@@ -1092,30 +1221,27 @@ def BIC(observation, model, Nfit=5):
 
 def is_model_compatible_with_spectroscopy(model, observation, sigma_tol=2.) :
     """
-    Check if the model is sufficiently close to the spectroscopic observations to be considered plausible.
+    Check if the model is sufficiently close to the spectroscopic observations 
+    to be considered plausible.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     model: dict
-        The dictionary describing the particular model as created by interpolate_track_to_model
+        The dictionary describing the particular model as created by 
+        interpolate_track_to_model
     observation: dict
-        The dictionary describing all the observations of a star as defined in create_observation_dict
-    # log_Teff_obs: float
-    #     Observed log(Teff) in units of K
-    # log_Teff_obs_err: float
-    #     Uncertainty on the observed log(Teff) in units of K
-    # log_L_obs: float
-    #     Observed log(L) in units of L_sol
-    # log_L_obs_err: float
-    #     Uncertainty on the observed log(L) in units of L_sol
+        The dictionary describing all the observations of a star as defined in 
+        create_observation_dict
     sigma_tol: float
-        How many times the uncertainty the model can be removed from the observations
+        How many times the uncertainty the model can be removed from the 
+        observations
         Defaults to 2
 
     ------- Returns -------
     compatible: bool
-        Whether the model log_Teff and log_L are within 2sigma of the observations
+        Whether the model log_Teff and log_L are within 2sigma of the 
+        observations
     """
     log_Teff_model = model["log_Teff"]
     log_L_model = model["log_L"]
@@ -1123,7 +1249,8 @@ def is_model_compatible_with_spectroscopy(model, observation, sigma_tol=2.) :
     log_Teff_obs_err = observation["log_Teff_err"]
     log_L_obs = observation["log_L"]
     log_L_obs_err = observation["log_L_err"]
-    return np.sqrt(((log_Teff_model - log_Teff_obs) / log_Teff_obs_err)**2 + ((log_L_model - log_L_obs) / log_L_obs_err)**2) < sigma_tol
+    return np.sqrt(((log_Teff_model - log_Teff_obs) / log_Teff_obs_err)**2 + \
+                   ((log_L_model - log_L_obs) / log_L_obs_err)**2) < sigma_tol
 
 
 def number_observations(observation, exclude_splitting=False) :
@@ -1134,9 +1261,11 @@ def number_observations(observation, exclude_splitting=False) :
 
     ------- Parameters -------
     observation: dict
-        The dictionary describing all the observations of a star as defined in create_observation_dict
+        The dictionary describing all the observations of a star as defined in 
+        create_observation_dict
     exclude_splitting: bool
-        Whether to not include rotational splitting in the count of the number of observational constraints
+        Whether to not include rotational splitting in the count of the number 
+        of observational constraints
         Defaults to False
 
     ------- Returns -------
@@ -1157,41 +1286,49 @@ def number_observations(observation, exclude_splitting=False) :
 
 def reduced_chi2(model, observation) :
     """
-    Compute the reduced chi-square of the provided model given the provided observations.
-    This is a sum of the chi2 of log_Teff, log_L and each ID'ed frequency. If the provided
-    observations do not include a specific radial order, all radial orders in the model are
-    checked and the one closest to the observed frequency is used in the chi2 computation.
+    Compute the reduced chi-square of the provided model given the provided 
+    observations. This is a sum of the chi2 of log_Teff, log_L and each ID'ed 
+    frequency. If the provided observations do not include a specific radial 
+    order, all radial orders in the model are checked and the one closest to the 
+    observed frequency is used in the chi2 computation.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     model: dict
-        The dictionary describing the particular model as created by interpolate_track_to_model
+        The dictionary describing the particular model as created by 
+        interpolate_track_to_model
     observation: dict
-        The dictionary describing all the observations of a star as defined in create_observation_dict
+        The dictionary describing all the observations of a star as defined in 
+        create_observation_dict
 
     ------- Returns -------
     chi2: float
         The reduced chi-square
-        Will be NaN if the model does not feature a frequency of the degree (and radial order) provided in the observation
+        Will be NaN if the model does not feature a frequency of the degree 
+        (and radial order) provided in the observation
     """
-    return standardised_chi2(model, observation) / max((number_observations(observation) - 5),1)
+    return standardised_chi2(model, observation) / \
+        max((number_observations(observation) - 5),1)
 
 
 def standardised_chi2(model, observation, exclude_splitting=False) :
     """
-    Compute the standardised chi-square of the provided model given the provided observations.
-    This is a sum of the chi2 of log_Teff, log_L and each ID'ed frequency. If the provided
-    observations do not include a specific radial order, all radial orders in the model are
-    checked and the one closest to the observed frequency is used in the chi2 computation.
+    Compute the standardised chi-square of the provided model given the provided 
+    observations. This is a sum of the chi2 of log_Teff, log_L and each ID'ed 
+    frequency. If the provided observations do not include a specific radial 
+    order, all radial orders in the model are checked and the one closest to the 
+    observed frequency is used in the chi2 computation.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     model: dict
-        The dictionary describing the particular model as created by interpolate_track_to_model
+        The dictionary describing the particular model as created by 
+        interpolate_track_to_model
     observation: dict
-        The dictionary describing all the observations of a star as defined in create_observation_dict
+        The dictionary describing all the observations of a star as defined in 
+        create_observation_dict
     exclude_splitting: bool
         Whether to not include rotational splitting terms in the chi2 sum
         Defaults to False
@@ -1199,47 +1336,57 @@ def standardised_chi2(model, observation, exclude_splitting=False) :
     ------- Returns -------
     chi2: float
         The (smallest) standardised chi-square
-        Will be NaN if the model does not feature a frequency of the degree (and radial order) provided in the observation
+        Will be NaN if the model does not feature a frequency of the degree 
+        (and radial order) provided in the observation
     """
     chi2 = 0
     if not np.isnan(observation["log_Teff"]) :
-        chi2 += (model["log_Teff"] - observation["log_Teff"])**2 / observation["log_Teff_err"]**2
+        chi2 += (model["log_Teff"] - observation["log_Teff"])**2 / \
+                observation["log_Teff_err"]**2
     if not np.isnan(observation["log_L"]) :
-        chi2 += (model["log_L"] - observation["log_L"])**2 / observation["log_L_err"]**2
+        chi2 += (model["log_L"] - observation["log_L"])**2 / \
+                observation["log_L_err"]**2
 
-    # Skipping the first because the chi2 contribution of the first frequency is zero as we force the model frequency onto the observed frequency
+    # Skipping the first because the chi2 contribution of the first frequency is 
+    # zero as we force the model frequency onto the observed frequency
     for k in range(observation["N_m"]) :
         l = observation["ls"][k]
         observation_freq_m0 = observation["freqs"][k]
         observation_freq_m0_err = observation["freqs_err"][k]
-        # If the radial order is given, compute the chi2 contribution of this zonal frequency using that specific radial order in the model
+        # If the radial order is given, compute the chi2 contribution of this 
+        # zonal frequency using that specific radial order in the model
         if not np.isnan(observation["n_pgs"][k]) :
             n_pg_obs = observation["n_pgs"][k]
-            chi2 += (get_mode_frequency_model(model, l, 0, n_pg_obs) - observation_freq_m0)**2 / observation_freq_m0_err**2
-        # Otherwise, go over each radial order in the model and use the one with the smallest chi2
-        # contribution as the zonal frequency
+            chi2 += (get_mode_frequency_model(model, l, 0, n_pg_obs) - \
+                    observation_freq_m0)**2 / observation_freq_m0_err**2
+        # Otherwise, go over each radial order in the model and use the one with 
+        # the smallest chi2 contribution as the zonal frequency
         else :
             # Smallest chi2 of a mode with the given degree.
-            # Start off huge to ensure the first identity produces a smaller chi2
+            # Start huge to ensure the first identity produces a smaller chi2
             chi2_freq_min = sys.float_info.max
-            n_pg_min = 999 # Some random filler value sure to cause an error if not replaced
+            n_pg_min = 999 # Some big filler value
             for n_pg in model["n_pgs"][(model["ls"] == l) & (model["ms"] == 0)] :
                 model_freq = get_mode_frequency_model(model, l, 0, n_pg)
                 if not np.isnan(model_freq) :
-                    chi2_freq = (model_freq - observation_freq_m0)**2 / observation_freq_m0_err**2
+                    chi2_freq = (model_freq - observation_freq_m0)**2 / \
+                                observation_freq_m0_err**2
                     if chi2_freq < chi2_freq_min :
                         chi2_freq_min = chi2_freq
                         n_pg_min = n_pg
-            if chi2_freq_min == sys.float_info.max : # No frequency of the given degree in the model!
+            if chi2_freq_min == sys.float_info.max : 
+                # No frequency of the given degree in the model!
                 return np.nan
             chi2 += chi2_freq_min
 
-        # Now we know the best n_pg, check the predicted splittings and compare to available observations, unless excluded of course
+        # Now we know the best n_pg, check the predicted splittings and compare 
+        # to available observations, unless excluded of course
         if not exclude_splitting :
             observation_splittings = observation["splittings"][k]
             observation_splittings_err = observation["splittings_err"][k]
             m = -l
-            for observation_split, observation_split_err in zip(observation_splittings, observation_splittings_err) :
+            for observation_split, observation_split_err in \
+                zip(observation_splittings, observation_splittings_err) :
                 # Skip zonal mode, already taken care of
                 if m == 0 :
                     m += 1
@@ -1248,7 +1395,8 @@ def standardised_chi2(model, observation, exclude_splitting=False) :
                     m += 1
                     continue
                 model_split = get_mode_splitting_model(model, l, m, n_pg_min)
-                chi2 += (model_split - observation_split)**2 / observation_split_err**2
+                chi2 += (model_split - observation_split)**2 / \
+                        observation_split_err**2
                 # Update azimuthal order
                 m += 1
 
@@ -1257,30 +1405,36 @@ def standardised_chi2(model, observation, exclude_splitting=False) :
 
 def standardised_chi2_components(model, observation) :
     """
-    Compute the standardised chi-square of the provided model given the provided observations and
-    report each term, i.e. the terms from log_Teff, log_L, zonal frequencies and each splitting 
-    is returned in a dictionary. 
+    Compute the standardised chi-square of the provided model given the provided 
+    observations and report each term, i.e. the terms from log_Teff, log_L, 
+    zonal frequencies and each splitting is returned in a dictionary. 
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     model: dict
-        The dictionary describing the particular model as created by interpolate_track_to_model
+        The dictionary describing the particular model as created by 
+        interpolate_track_to_model
     observation: dict
-        The dictionary describing all the observations of a star as defined in create_observation_dict
+        The dictionary describing all the observations of a star as defined in 
+        create_observation_dict
 
     ------- Returns -------
     chi2: float
         The (smallest) standardised chi-square
-        Will be NaN if the model does not feature a frequency of the degree (and radial order) provided in the observation
+        Will be NaN if the model does not feature a frequency of the degree 
+        (and radial order) provided in the observation
     """
     chi2_components = {}
     if not np.isnan(observation["log_Teff"]) :
-        chi2_components["log_Teff"] = (model["log_Teff"] - observation["log_Teff"])**2 / observation["log_Teff_err"]**2
+        chi2_components["log_Teff"] = (model["log_Teff"] - \
+                                       observation["log_Teff"])**2 / \
+                                       observation["log_Teff_err"]**2
     else :
         chi2_components["log_Teff"] = np.nan
     if not np.isnan(observation["log_L"]) :
-        chi2_components["log_L"] = (model["log_L"] - observation["log_L"])**2 / observation["log_L_err"]**2
+        chi2_components["log_L"] = (model["log_L"] - observation["log_L"])**2 / \
+                                    observation["log_L_err"]**2
     else :
         chi2_components["log_L"] = np.nan
 
@@ -1292,12 +1446,16 @@ def standardised_chi2_components(model, observation) :
         observation_freq_m0_err = observation["freqs_err"][k]
         observation_splittings = observation["splittings"][k]
         observation_splittings_err = observation["splittings_err"][k]
-        # If the radial order is given, compute the chi2 contribution of this zonal frequency using that specific radial order in the model
+        # If the radial order is given, compute the chi2 contribution of this 
+        # zonal frequency using that specific radial order in the model
         if not np.isnan(observation["n_pgs"][k]) :
             n_pg_obs = observation["n_pgs"][k]
-            chi2_components["freqs"].append((get_mode_frequency_model(model, l, 0, n_pg_obs) - observation_freq_m0)**2 / observation_freq_m0_err**2)
-        # Otherwise, go over each radial order in the model and use the one with the smallest chi2
-        # contribution as the zonal frequency
+            model_freq_m0 = get_mode_frequency_model(model, l, 0, n_pg_obs)
+            chi2_components["freqs"].append((model_freq_m0 - \
+                                             observation_freq_m0)**2 / \
+                                             observation_freq_m0_err**2)        
+        # Otherwise, go over each radial order in the model and use the one with 
+        # the smallest chi2 contribution as the zonal frequency
         else :
             # Smallest chi2 of a mode with the given degree.
             # Start off huge to ensure the first identity produces a smaller chi2
@@ -1306,19 +1464,23 @@ def standardised_chi2_components(model, observation) :
             for n_pg in model["n_pgs"][(model["ls"] == l) & (model["ms"] == 0)] :
                 model_freq = get_mode_frequency_model(model, l, 0, n_pg)
                 if not np.isnan(model_freq) :
-                    chi2_freq = (model_freq - observation_freq_m0)**2 / observation_freq_m0_err**2
+                    chi2_freq = (model_freq - observation_freq_m0)**2 / \
+                                observation_freq_m0_err**2
                     if chi2_freq < chi2_freq_min :
                         chi2_freq_min = chi2_freq
                         n_pg_min = n_pg
-            if chi2_freq_min == sys.float_info.max : # No zonal frequency of the given degree in the model!
+            if chi2_freq_min == sys.float_info.max : 
+                # No zonal frequency of the given degree in the model!
                 chi2_components["splittings"][-1].append(np.nan)
                 return np.nan
             chi2_components["freqs"].append(chi2_freq_min)
 
-        # Now we know the best n_pg, check the predicted splittings and compare to available observations
+        # Now we know the best n_pg, check the predicted splittings and compare 
+        # to available observations
         m = -l
         chi2_components["splittings"].append([])
-        for observation_split, observation_split_err in zip(observation_splittings, observation_splittings_err) :
+        for observation_split, observation_split_err in \
+            zip(observation_splittings, observation_splittings_err) :
             # Skip zonal mode, already taken care of
             if m == 0 :
                 m += 1
@@ -1328,38 +1490,44 @@ def standardised_chi2_components(model, observation) :
                 chi2_components["splittings"][-1].append(np.nan)
                 continue
             model_split = get_mode_splitting_model(model, l, m, n_pg_min)
-            chi2_components["splittings"][-1].append((model_split - observation_split)**2 / observation_split_err**2)
+            chi2_components["splittings"][-1].append((model_split - \
+                                                      observation_split)**2 / \
+                                                      observation_split_err**2)
             # Update azimuthal order
             m += 1
     return chi2_components
 
 
 
-##### NAVIGATING GRID #########################################################################
+##### NAVIGATING GRID ##########################################################
 
 
 def find_nearest_model_number(tracks, Xc) :
     """
-    Find the MESA model number at which MESA saved output with the actual hydrogen fraction closest to the given central hydrogen fraction.
-    The difference with the similar function find_nearest_saved_model_number is that this function searches for any model number of the MESA
-    run, while find_nearest_saved_model_number only considers the model numbers at which MESA wrote detailed output.
+    Find the MESA model number at which MESA saved output with the actual 
+    hydrogen fraction closest to the given central hydrogen fraction. The 
+    difference with the similar function find_nearest_saved_model_number is that 
+    this function searches for any model number of the MESA run, while 
+    find_nearest_saved_model_number only considers the model numbers at which 
+    MESA wrote detailed output.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     tracks: dict
-        The dictionary summarising the StORM output of a MESA run as created by read_storm_tracks
+        The dictionary summarising the StORM output of a MESA run as created by 
+        read_storm_tracks
     Xc: float
-        The central hydrogen fraction around which we seek the nearest saved central hydrogen fraction
+        The central hydrogen fraction around which we seek the nearest saved 
+        central hydrogen fraction
 
     ------- Returns -------
     mn_closest: float
-        The central hydrogen fraction around which MESA saved output closest in central hydrogen fraction to the provided Xc
+        The central hydrogen fraction around which MESA saved output closest in 
+        central hydrogen fraction to the provided Xc
     """
-    # model_numbers = io.read_MESA_history_column(tracks["histfile"], "model_number", dtype=int)
-    # center_h1s = io.read_MESA_history_column(tracks["histfile"], "center_h1", dtype=float)
-    model_numbers, center_h1s = io.read_MESA_history_columns(tracks["histfile"], ["star_age", "center_h1"])
-
+    model_numbers, center_h1s = io.read_MESA_history_columns(tracks["histfile"], 
+                                                             ["star_age", "center_h1"])
     # Index of closest Xc
     i = np.argmin(abs(center_h1s - Xc))
     mn_closest = model_numbers[i]
@@ -1368,21 +1536,26 @@ def find_nearest_model_number(tracks, Xc) :
 
 def find_nearest_saved_model_number(tracks, Xc) :
     """
-    Find the MESA model number at which MESA saved output with the actual hydrogen fraction closest to the given central hydrogen fraction.
-    The difference with the similar function find_nearest_model_number is that this function searches for only those model number at which
-    MESA wrote detailed output, instead of any model number like find_nearest_model_number
+    Find the MESA model number at which MESA saved output with the actual 
+    hydrogen fraction closest to the given central hydrogen fraction. The 
+    difference with the similar function find_nearest_model_number is that this 
+    function searches for only those model number at which MESA wrote detailed 
+    output, instead of any model number like find_nearest_model_number
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     tracks: dict
-        The dictionary summarising the StORM output of a MESA run as created by read_storm_tracks
+        The dictionary summarising the StORM output of a MESA run as created by 
+        read_storm_tracks
     Xc: float
-        The central hydrogen fraction around which we seek the nearest saved central hydrogen fraction
+        The central hydrogen fraction around which we seek the nearest saved 
+        central hydrogen fraction
 
     ------- Returns -------
     mn_save_closest: float
-        The central hydrogen fraction around which MESA saved output closest in central hydrogen fraction to the provided Xc
+        The central hydrogen fraction around which MESA saved output closest in 
+        central hydrogen fraction to the provided Xc
     """
     # Index of closest Xc
     i = np.argmin(abs(tracks["Xcs"] - Xc))
@@ -1392,19 +1565,23 @@ def find_nearest_saved_model_number(tracks, Xc) :
 
 def find_nearest_Xc_save(tracks, Xc) :
     """
-    Find the Xc_save of the MESA output profile with the actual hydrogen fraction closest to the given central hydrogen fraction.
+    Find the Xc_save of the MESA output profile with the actual hydrogen 
+    fraction closest to the given central hydrogen fraction.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     tracks: dict
-        The dictionary summarising the StORM output of a MESA run as created by read_storm_tracks
+        The dictionary summarising the StORM output of a MESA run as created by 
+        read_storm_tracks
     Xc: float
-        The central hydrogen fraction around which we seek the nearest saved central hydrogen fraction
+        The central hydrogen fraction around which we seek the nearest saved 
+        central hydrogen fraction
 
     ------- Returns -------
     Xc_save_closest: float
-        The central hydrogen fraction around which MESA saved output closest in central hydrogen fraction to the provided Xc
+        The central hydrogen fraction around which MESA saved output closest in 
+        central hydrogen fraction to the provided Xc
     """
     # Index of closest Xc
     i = np.argmin(np.min(abs(tracks["Xcs"] - Xc)))
@@ -1414,15 +1591,17 @@ def find_nearest_Xc_save(tracks, Xc) :
 
 def read_model_number_and_Xc_save(storm_summary_path) :
     """
-    Get the model number and central hydrogen fraction at which MESA should have saved from the name of the STORM summary file
+    Get the model number and central hydrogen fraction at which MESA should have 
+    saved from the name of the STORM summary file
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     storm_summary_path: string
         The full or relative path to the storm summary file.
-        This file's name is expected to be formatted as "storm_summary_Xc{Xc}_mn{mn}.hdf5" with Xc the central hydrogen fraction,
-        mn the model number and frot the rotation rate in c/d.
+        This file's name is expected to be formatted as 
+        "storm_summary_Xc{Xc}_mn{mn}.hdf5" with Xc the central hydrogen 
+        fraction, mn the model number and frot the rotation rate in c/d.
 
     ------- Returns -------
     mn: int
