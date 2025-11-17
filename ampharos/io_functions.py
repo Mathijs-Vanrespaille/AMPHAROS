@@ -3,8 +3,6 @@ import glob
 import h5py
 import os
 
-from .support_functions import read_model_number_and_Xc_save
-
 
 ##### INPUT ##################################################################################################
 
