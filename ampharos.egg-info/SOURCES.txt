@@ -3,6 +3,7 @@ README.md
 setup.py
 ampharos/__init__.py
 ampharos/io_functions.py
+ampharos/main_functions.py
 ampharos/support_functions.py
 ampharos/visualisation.py
 ampharos.egg-info/PKG-INFO

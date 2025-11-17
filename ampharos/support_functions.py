@@ -167,56 +167,6 @@ def lin_interp(x, y, i, half):
     return x[i] + (x[i+1] - x[i]) * ((half - y[i]) / (y[i+1] - y[i]))
 
 
-def split_line(line, sep) :
-    """
-    Splits a string in 2 parts.
-
-    Author: Mathias Michielsen
-
-    ------- Parameters -------
-    line: string
-        String to split in 2.
-    sep: string
-        Separator where the string has to be split around.
-
-    ------- Returns -------
-    head: string
-        Part 1 of the string before the separator.
-    tail: string
-        Part 2 of the string after the separator.
-    """
-    head, sep_, tail = line.partition(sep)
-    assert sep_ == sep
-    return head, tail
-
-
-def substring(line, sep_first, sep_second) :
-    """
-    Get part of a string between 2 specified separators.
-    If second separator is not found, return everyting after first separator.
-
-    Author: Mathias Michielsen
-
-    ------- Parameters -------
-    line: string
-        String to get substring from.
-    sep_first: string
-        First separator after which the returned substring should start.
-    sep_second: string
-        Second separator at which the returned substring should end.
-
-    ------- Returns -------
-    head: string
-        Part of the string between the 2 separators.
-    """
-    head, tail = split_line(line, sep = sep_first)
-    if sep_second not in tail:
-        return tail
-    head, tail = split_line(tail, sep =sep_second)
-    return head
-
-
-
 ##### EXTRACTING DATA FROM DICTIONARIES ########################################
 
 

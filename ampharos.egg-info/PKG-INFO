@@ -27,11 +27,11 @@ Dynamic: requires-dist
 Dynamic: requires-python
 Dynamic: summary
 
-This tutorial will teach you the basics of the forward modelling code presented in Vanrespaille et al. (in prep.). The user is expected to have read Section 4 of that paper to understand the default forward modelling methodology. Also beneficial are Section 5 and Appendix B for the alternative methods included in the code and Section 3 for a description of the stellar models and oscillation computations.
+This tutorial will teach you the basics of Asteroseismic Modelling of Hot Pulsators Accounting for Rotation using Oscillation code StORM (AMPHAROS), the forward modelling code presented in Vanrespaille et al. (submitted). The user is expected to have read Section 4 of that paper to understand the default forward modelling methodology. Also beneficial to read are Section 3 for a description of the stellar models and oscillation computations and Section 5 and Appendix B for the alternative methods included in AMPHAROS.
 
 ## Requirements
 
-To run the code, the following packages are required. The code is not expected to strongly depend on the specific versions used. Nonetheless, we list the versions used to test the code and collect the results presented in Vanrespaille et al. (in prep.) for debugging purposes:
+To run AMPHAROS, the following packages are required. The code is not expected to strongly depend on the specific versions used. Nonetheless, we list the versions used to test the code and collect the results presented in Vanrespaille et al. (submitted) for debugging purposes:
 
  - h5py (3.12.1)
  - matplotlib (3.5.1)
@@ -42,18 +42,23 @@ To run the code, the following packages are required. The code is not expected t
  - Optional: pygyre (1.4)
 
 
+## Installation
+
+CONTINUE
+
+
 ## Input for the code
 
 The user has to provide three things to the code:
 
- - The MESA-StORM (and or GYRE) model grid output
+ - The MESA-StORM (and optionally GYRE) model grid output
  - A parameter file describing at what values for the free parameters to look for model output
  - The observational input
 
  We now briefly describe what each of these should contain and where one can obtain them.
 
 
-#### MESA-StORM(-GYRE) grid
+### MESA-StORM(-GYRE) grid
 
 The model output is expected to be structured as follows:
 
@@ -89,74 +94,76 @@ The model output is expected to be structured as follows:
 └───...
 ```
 
-Note that the `gyre_summaries` are optional and are only necessary when using the alternative modelling method employing the first-order rotational treatment, described in Appendix B of Vanrespaille et al. (in prep.).  
+Note that the `gyre_summaries` are optional and are only necessary when using the alternative modelling method employing the first-order rotational treatment, described in Appendix B of Vanrespaille et al. (submitted).  
 
-Herein *Zi* is the intial metallicity of model *i* with three decimal places, *Mi* the initial mass with two decimal places, *logDi* the mixing strength at the base of the envelope with one decimal place, *fovi* the overshoot parameter with three decimal places, *Xcij* the central hydrogen mass fraction at which output step *j* in model *i* is saved and *mnij* is the corresponding MESA model number. *MESA_top_dir* is the top level directory containing all the model output, which the user needs to provide to the code.
-The files ending in .hist are the history files created by MESA. Files ending in .HDF in the `gyre_summaries` subdirectories are the summary files created by GYRE. Files ending in .hdf5 are custom summaries of the frequencies predicted by StORM at the different rotation rates for a given GYRE input model created with the Python scripts provided in the StORM setup subdirectory in the Zenodo repository (link to be added).
-The models and StORM output in this grid can be generated with the MESA work directory and StORM setup in the Zenodo repository accompanying Vanrespaille et al. (in prep.) (link to be provided). The model output used in Vanrespaille et al. (in prep.) are available at the KU Leuven Research Data Repository (link to be added).
+Herein *Zi* is the initial metallicity of model *i* with three decimal places, *Mi* the initial mass in solar masses with two decimal places, *logDi* the mixing coefficient in cgs at the base of the envelope with one decimal place, *fovi* the exponential overshoot parameter in local pressure scale with three decimal places, *Xcij* the central hydrogen mass fraction at which output step *j* in model *i* is saved and *mnij* is the corresponding MESA model number. *MESA_top_dir* is the top level directory containing all the model output, which the user needs to provide to the code.
+The files ending in .hist are the history files created by MESA. Files ending in .HDF in the `gyre_summaries` subdirectories are the summary files created by GYRE. Files ending in .hdf5 are custom summaries of the frequencies predicted by StORM at the different rotation rates for a given input model.
+
+These have been created with the Python scripts provided in the StORM setup subdirectory in the Zenodo repository (link to be added). The models and StORM output in this grid can be generated with the MESA work directory and StORM setup in the Zenodo repository accompanying Vanrespaille et al. (submitted) (link to be provided). The model output used in Vanrespaille et al. (submitted) are available at the KU Leuven Research Data Repository (link to be added).
 
 
-#### Parameter file
+### Parameter file
 
 This is a basic ascii file describing at which model parameters to look for output and subsequently try to fit the observations to. By default, the code assumes this is a comma-separated values (csv) file, including a header containing the names of the columns. This file must contain at least four columns, namely:
 
  - Initial metal mass fraction. The name of this column must be "Z" or "Zini".
  - Initial stellar mass in solar mass. The name of this column must be "M" or "Mini".
- - Mixing strength at the base of the envelope. The name of this column must be "log_D", "logD", "logDmix", "log_Dmix", or "log_D_mix".
+ - Mixing coefficient at the base of the envelope in cgs. The name of this column must be "log_D", "logD", "logDmix", "log_Dmix", or "log_D_mix".
  - Overshoot parameter in units of local pressure scale height. The name of this column must be "f_ov" or "fov".
 
-Note that adding more columns is permitted, but the code will not read those in.
+Note that adding more columns is permitted; AMPHAROS will not read those in.
 
-An example of such a file can be found in this repository at `input/tutorial/grid_test.csv`. The parameter file used in Vanrespaille et al. (in prep.) can be found in this repository at `input/grid_params/grid_varying_logD.csv`.
+An short example of such a file can be found in this GitHub repository at `input/tutorial/grid_test.csv`. The parameter file used in Vanrespaille et al. (submitted) can be found at `input/grid_params/grid_varying_logD.csv`.
 
 
-#### Observation file
+### Observation file
 
-This is a basic ascii file describing the input observations for the code. By default, the code assumes this is a tab-separated values (tsv) file, including a header containing the names of the columns. This file must contain at least four columns plus 6 per observed identified modes. The columns that must always be included are:
+This is a basic ascii file describing the input observations for the code. By default, AMPHAROS assumes this is a tab-separated values (tsv) file, including a header containing the names of the columns. This file must contain at least four columns plus 6 per observed identified modes. The columns that must always be included are:
 
  - "name": User-chosen name of the star used to define where the modelling output and plots will be saved.
  - "save_suffix": User-chosen suffix used in the filenames in which the modelling output and plots will be saved. Useful to differentiate between different analyses of the same star.
- - "log_Teff": Base-10 logarithm of the observed effective temperature in kelvin
- - "log_Teff_err": Uncertainty on the base-10 logarithm of the observed effective temperature in kelvin
- - "log_L": Base-10 logarithm of the observed luminosity in solar luminosity
- - "log_L_err": Uncertainty on the base-10 logarithm of the observed luminosity in solar luminosity
- - "Nm_ID": Number of identified modes
+ - "log_Teff": Base-10 logarithm of the observed effective temperature in kelvin.
+ - "log_Teff_err": Uncertainty on the base-10 logarithm of the observed effective temperature in kelvin.
+ - "log_L": Base-10 logarithm of the observed luminosity in solar luminosity.
+ - "log_L_err": Uncertainty on the base-10 logarithm of the observed luminosity in solar luminosity.
+ - "Nm_ID": Number of identified modes.
  - "Ni_ID": Number of identified radial modes or rotationally split multiplets.
  - "n_pg_main": Radial order of the fixed mode (referred to as the 'main mode' in the code). This column can be left empty.
- - "all_f": list of frequencies of all observed signals, including unidentified ones, in cycles per day
+ - "all_f": list of frequencies of all observed signals, including unidentified ones, in cycles per day.
  - "all_a": list of amplitudes of all observed signals, including unidentified ones. Only used in visualisation so the unit does not really matter.
 
 Next, for each identified mode with index *j* varying between 1 and N_f, the following must be provided:
  - "i{j}": An index indicating to which multiplet this mode belongs. Varies between 1 and Ni_ID.
  - "l{j}": Degree
- - "m{j}": Aazimuthal order
+ - "m{j}": Azimuthal order
  - "f{j}": Frequency in cycles per day
  - "f_err{j}": Uncertainty on the frequency in cycles per day
  - "a{j}": Amplitude. Only used in visualisation so the unit does not really matter.
 
-Note that adding more columns is permitted, for instance to add comments, which the code will ignore.
+Note that adding more columns is permitted, to add comments for instance, which AMPHAROS will ignore.
 
-Examples of such a file can be found in this repository at `input/tutorial/obs_test_radial.tsv`, `input/tutorial/obs_test_nonRadial.tsv`, and `input/tutorial/obs_test_nonRadial_withVariations.tsv`. The observation files used in Vanrespaille et al. (in prep.) can be found in this repository in the subdirectory `input/observations/`.
+Examples of such a file can be found in this GitHub repository at `input/tutorial/obs_test_radial.tsv`, `input/tutorial/obs_test_nonRadial.tsv`, and `input/tutorial/obs_test_nonRadial_withVariations.tsv`. The observation files used in Vanrespaille et al. (submitted) can be found in the subdirectory `input/observations/`.
 
 
 ## Walkthrough
 
-In this section, we provide some examples with increasing complexity on how to use the code using the default methodology described in Section 4 of Vanrespaille et al. (in prep.).
+In this section, we provide some examples with increasing complexity on how to use the code using the default methodology described in Section 4 of Vanrespaille et al. (submitted).
 
-#### Modelling two stars with identified radial modes
+
+### Modelling two stars with identified radial modes
 
 Let us begin with a simple case of two stars with a known radial mode and one rotationally split multiplet. These are described in `input/tutorial/obs_test_radial.tsv`.
 
-In order to use the code, open a Python terminal, Jupyter notebook, or something similar in the work directory provided in this repository. Then import the code using
+In order to use the code, open a Python terminal, Jupyter notebook, or something similar in the work directory provided in this repository. Then import the AMPHAROS using
 
 ```python
-import main_functions as mf
+import ampharos as amphy
 ```
 
 Next, you need to load in the observations and the model grid. As this can take a significant amount of time (> 1h when loading in 1505 models), we load in a much smaller subgrid for teaching purposes described in `input/tutorial/grid_test.csv` while the models are stored in `MESA_output_fullGrid/`. To do so, run the following in your Python terminal:
 
 ```python
-grid, obs_radial = mf.initialise_all("input/tutorial/obs_test_radial.tsv", "input/tutorial/grid_test.csv", "MESA_output_fullGrid/")
+grid, obs_radial = amphy.initialise_all("input/tutorial/obs_test_radial.tsv", "input/tutorial/grid_test.csv", "MESA_output_fullGrid/")
 ```
 
 Wait until the subgrid is loaded in, which should take roughly a minute. In the meantime, you should see two stars' telephone numbers printed, followed by the message "Finished reading k/27" 27 times. As the radial order of these stars is not known a priori, we try three different radial orders for the fixed radial mode. Once the grid is loaded in, you can start the analysis using
@@ -167,10 +174,10 @@ mf.analyse_observations(grid, obs_radial, n_pgs=[1,2,3])
 
 On the laptop used to test this tutorial, this analysis takes roughly two minutes. In the meantime, you should see the names of the two stars being printed to the screen, which can help you understand how far along the code is. It is also likely that some warnings are printed. You can safely ignore these for now, or consult the **common warning messages** section below.
 
-Once the analysis is complete, you should see two new subdirectories, `plots/` and `results/` have been created. Take a few minutes to explore these subdirectories. Of particular importance are `plots/HD117704/picking_npg/` and `plots/TIC465541764/picking_npg/`, which contain figures designed to help you figure out what the most likely radial order of the fixed mode is. You need to appraise and manually select the most likely radial order identifications. Try that yourself! Vanrespaille et al. (in prep.) identified the most likely radial mode of HD 117704 to be n_pg=1 and that of TIC 465541764 to be n_pg=2. Do you agree?
+Once the analysis is complete, you should see two new subdirectories, `plots/` and `results/` have been created. Take a few minutes to explore these subdirectories. Of particular importance are `plots/HD117704/picking_npg/` and `plots/TIC465541764/picking_npg/`, which contain figures designed to help you figure out what the most likely radial order of the fixed mode is. You need to appraise and manually select the most likely radial order identifications. Try that yourself! Vanrespaille et al. (submitted) identified the most likely radial mode of HD 117704 to be n_pg=1 and that of TIC 465541764 to be n_pg=2. Do you agree?
 
 
-#### Modelling stars with a known radial order for the fixed mode
+### Modelling stars with a known radial order for the fixed mode
 
 Now that we known the radial orders of the fixed modes of HD 117704 and TIC 465541764, we can tell the code to only analyse them using only those radial orders provided in the "n_pg_main" column in the observation file. To do so, run the following:
 
@@ -187,7 +194,7 @@ mf.analyse_observations(grid, obs_radial, n_pgs=[])
 Now both names should get printed to the screen. You should take stock of how long this computation took. It should take only roughly a third of the time of the analysis you did when you provided `n_pgs=[1,2,3]`.
 
 
-#### Modelling a star without a known radial mode
+### Modelling a star without a known radial mode
 
 Now how does one analyse a star without an identified radial mode to use to fix the age. We first need to read the observation file that star (HD 340239) is in, though we do not need to re-load the grid. To do so, use the following command:
 
@@ -195,7 +202,7 @@ Now how does one analyse a star without an identified radial mode to use to fix 
 obs_nonradial = mf.read_observations("input/tutorial/obs_test_nonRadial.tsv", sort_by_l=False, sort_by_freq=True)
 ```
 
-Let's take a moment to explain what these arguments `sort_by_l` and `sort_by_freq` mean. Internally, the code creates lists of various properties of the zonal modes in the observation files, notably their degree and frequency. The first mode in these lists is used as the fixed mode. By default, it will sort these lists by the degree such that a radial mode, i.e. one with l=0, comes first. This is not helpful when no radial mode is identified. Instead, as explained by Section 4.2 of Vanrespaille et al. (in prep.), it is best to use the zonal mode with the highest frequency as the fixed mode. That's why we tell the code not to sort by degree and instead to sort by frequency, which will place the largest frequency first.
+Let's take a moment to explain what these arguments `sort_by_l` and `sort_by_freq` mean. Internally, the code creates lists of various properties of the zonal modes in the observation files, notably their degree and frequency. The first mode in these lists is used as the fixed mode. By default, it will sort these lists by the degree such that a radial mode, i.e. one with l=0, comes first. This is not helpful when no radial mode is identified. Instead, as explained by Section 4.2 of Vanrespaille et al. (submitted), it is best to use the zonal mode with the highest frequency as the fixed mode. That's why we tell the code not to sort by degree and instead to sort by frequency, which will place the largest frequency first.
 
 Now that this is loaded in, we can analyse the star, trying out different possibilities for the radial order. However, now we have to also consider that the quintuplet (l=2) we use as the fixed mode of this star might be a g-mode, meaning $n_pg < 0$, or an f-mode, meaning $n_pg=0$. Therefore, analyse this star using
 
@@ -205,12 +212,12 @@ mf.analyse_observations(grid, obs_nonradial, n_pgs=[-2,-1,0,1,2,3])
 
 You should see a couple of warning messages pop up, the meaning of which you can consult below. Look at the results and figures created for this target. For what radial order(s) did the code not create any output? For what radial order(s) does the code generate bizarre and thus unreliable figures (be sure to check the HRD in particular!)?
 
-Vanrespaille et al. (in prep.) took this star's most likely radial order for the fixed mode to be $n_pg=0$, meaning it has an f-mode. Do you agree?
+Vanrespaille et al. (submitted) took this star's most likely radial order for the fixed mode to be $n_pg=0$, meaning it has an f-mode. Do you agree?
 
 
-#### Constraining differential rotation
+### Constraining differential rotation
 
-As described in Section 7. of Vanrespaille et al. (in prep.), differential rotation can be measured by analysing a star with several rotationally-split multiplets several times. Each time, we only model the rotational splitting of one multiplet, such that the rotation frequency is optimised to that one multiplet alone. To that end, we prepared the observation file for HD 340239 `input/tutorial/obs_test_nonRadial_withVariations.tsv` with three different variations: once with all identified signals, once with one complete multiplet and the other multiplet's zonal mode and once vice versa. Note that each line has a unique "save_suffix".
+As described in Section 7. of Vanrespaille et al. (submitted), differential rotation can be measured by analysing a star with several rotationally-split multiplets several times. Each time, we only model the rotational splitting of one multiplet, such that the rotation frequency is optimised to that one multiplet alone. To that end, we prepared the observation file for HD 340239 `input/tutorial/obs_test_nonRadial_withVariations.tsv` with three different variations: once with all identified signals, once with one complete multiplet and the other multiplet's zonal mode and once vice versa. Note that each line has a unique "save_suffix".
 
 Let's analyse these different variations now. Herein, we'll only use the identified radial order of the star provided in the observation file:
 
@@ -225,10 +232,10 @@ Once completed, navigate to the star's results folder at `results/HD340239/n_pg_
 
 ## Alternative modelling approaches
 
-As described in Section 5 and Appendix B of Vanrespaille et al. (in prep.), the code features some alternative modelling approaches. These are to analyse the rotational splitting with the first-order treatment of GYRE and to neglect the rotational splitting in the selection of the best model and computation of the statical parameter estimates (though the rotational splitting is still used in the optimisation of the rotation frequency for each evolutionary track). We now briefly show how to employ these alternative methods:
+As described in Section 5 and Appendix B of Vanrespaille et al. (submitted), the code features some alternative modelling approaches. These are to analyse the rotational splitting with the first-order treatment of GYRE and to neglect the rotational splitting in the selection of the best model and computation of the statical parameter estimates (though the rotational splitting is still used in the optimisation of the rotation frequency for each evolutionary track). We now briefly show how to employ these alternative methods:
 
 
-#### Neglecting rotational splitting in the cost function
+### Neglecting rotational splitting in the cost function
 
 If you haven't done so already, read in the test grid and observations using
 
@@ -247,7 +254,7 @@ Take a look at the `results/` and `plots/` subdirectories. You should see that n
 
 
 
-#### First-order rotation treatment
+### First-order rotation treatment
 
 **Requires pygyre be installed**
 
