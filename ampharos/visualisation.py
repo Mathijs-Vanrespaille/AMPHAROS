@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import sys
 
 from .support_functions import get_frequency_track, interpolate_frequency_track
 from .io_functions import read_MESA_history_columns
@@ -131,8 +132,9 @@ def plot_frequency_tracks(tracks, ls, ms, n_pgs, frot_rel=0.00,
 
 
 def add_instability_strip(ax, y_axis='logL',
-                          datadir='instability_strips/', Zini='0.014', rot='0.0',
-                          IStype='both', p_mode_col='k', p_mode_ls='solid',
+                          datadir=f'{os.path.dirname(sys.argv[0])}/instability_strips/',
+                          Zini='0.014', rot='0.0', IStype='both',
+                          p_mode_col='k', p_mode_ls='solid',
                           g_mode_col='k', g_mode_ls='dashed',
                           zorder=0, fill=False, alpha=0.2, lw=.5):
     """
@@ -453,7 +455,8 @@ def plot_all_chi2_in_HRD(results, observation, n_pg_main,
     ax.invert_xaxis()
 
     if show_IS :
-        add_instability_strip(ax, datadir='instability_strips/',
+        add_instability_strip(ax,
+                              datadir=f'{os.path.dirname(sys.argv[0])}/instability_strips/',
                               zorder=0, Zini='0.014', rot='0.0', alpha=0.2,
                               y_axis='logL', IStype='p-mode',
                               p_mode_col='k', fill=False, p_mode_ls='dotted',
@@ -571,7 +574,8 @@ def plot_models_and_observed_HRD(models, observation,
     ax.invert_xaxis()
 
     if show_IS:
-        add_instability_strip(ax, datadir='instability_strips/',
+        add_instability_strip(ax,
+                              datadir=f'{os.path.dirname(sys.argv[0])}/instability_strips/',
                               zorder=0, Zini='0.014', rot='0.0', alpha=0.2,
                               y_axis='logL', IStype='p-mode',
                               p_mode_col='k', fill=False, p_mode_ls='dotted',
