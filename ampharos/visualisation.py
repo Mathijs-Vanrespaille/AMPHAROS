@@ -453,7 +453,7 @@ def plot_all_chi2_in_HRD(results, observation, n_pg_main,
     ax.invert_xaxis()
 
     if show_IS :
-        add_instability_strip(ax, datadir='code/instability_strips/',
+        add_instability_strip(ax, datadir='instability_strips/',
                               zorder=0, Zini='0.014', rot='0.0', alpha=0.2,
                               y_axis='logL', IStype='p-mode',
                               p_mode_col='k', fill=False, p_mode_ls='dotted',
@@ -571,7 +571,7 @@ def plot_models_and_observed_HRD(models, observation,
     ax.invert_xaxis()
 
     if show_IS:
-        add_instability_strip(ax, datadir='code/instability_strips/',
+        add_instability_strip(ax, datadir='instability_strips/',
                               zorder=0, Zini='0.014', rot='0.0', alpha=0.2,
                               y_axis='logL', IStype='p-mode',
                               p_mode_col='k', fill=False, p_mode_ls='dotted',
