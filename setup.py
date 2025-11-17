@@ -9,7 +9,7 @@ setuptools.setup(
     author="Mathijs Vanrespaille",
     author_email="mathijs.vanrespaille@kuleuven.be",
     packages=["ampharos"],
-    include=["ampharos/__init__.py", "ampharos/instability_strips/", "ampharos/io_functions.py", "ampharos/main_functions.py", "ampharos/support_functions.py", "ampharos/visualisation.py"],
+    include=["ampharos/__init__.py", "ampharos/instability_strips/", "ampharos/io_functions.py", "ampharos/support_functions.py", "ampharos/visualisation.py"],
     exclude=["ampharos/identify_storm_output.py"],
 #    description="Asteroseismic forward modelling of beta Cephei pulsators",
     description="Asteroseismic Modelling of Hot Pulsators Accounting for Rotation using Oscillation code StORM",
