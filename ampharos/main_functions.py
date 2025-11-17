@@ -2,7 +2,8 @@ from .support_functions import initialise_grid, find_age_cross_zonal_mode, \
                                interpolate_track_to_model_in_age, \
                                interpolate_models_in_frot_with_StORM, \
                                is_model_compatible_with_spectroscopy, \
-                               number_observations, standardised_chi2
+                               number_observations, standardised_chi2, \
+                               interpolate_history_columns_in_age
 from .io_functions import write_results, create_observation_dict
 from .visualisation import *
 
@@ -656,8 +657,8 @@ def add_history_results(grid, results) :
         results["log_Teffs"].append(model["log_Teff"])
         results["log_Ls"].append(model["log_L"])
 
-        interp_cols = sf.interpolate_history_columns_in_age(tracks, age_cross,
-                                                            ["mass_conv_core", "log_R", "log_g", "Asymptotic_dP"])
+        interp_cols = interpolate_history_columns_in_age(tracks, age_cross,
+                                                         ["mass_conv_core", "log_R", "log_g", "Asymptotic_dP"])
         M_cc, log_R, log_g, Pi0 = interp_cols
         results["Ms_cc"].append(M_cc)
         results["log_Rs"].append(log_R)

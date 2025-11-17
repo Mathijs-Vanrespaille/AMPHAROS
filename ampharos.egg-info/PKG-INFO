@@ -160,19 +160,19 @@ In order to use the code, open a Python terminal, Jupyter notebook, or something
 import ampharos as amphy
 ```
 
-Next, you need to load in the observations and the model grid. As this can take a significant amount of time (> 1h when loading in 1505 models), we load in a much smaller subgrid for teaching purposes described in `input/tutorial/grid_test.csv` while the models are stored in `MESA_output_fullGrid/`. To do so, run the following in your Python terminal:
+Next, you need to load in the observations and the model grid. As this can take a significant amount of time (> 1h when loading in 1505 models), we load in a much smaller subgrid for teaching purposes described in `input/tutorial/grid_test.csv`. The models are stored in `MESA_output_fullGrid/`. To do so, run the following in your Python terminal:
 
 ```python
 grid, obs_radial = amphy.initialise_all("input/tutorial/obs_test_radial.tsv", "input/tutorial/grid_test.csv", "MESA_output_fullGrid/")
 ```
 
-Wait until the subgrid is loaded in, which should take roughly a minute. In the meantime, you should see two stars' telephone numbers printed, followed by the message "Finished reading k/27" 27 times. As the radial order of these stars is not known a priori, we try three different radial orders for the fixed radial mode. Once the grid is loaded in, you can start the analysis using
+Wait until the subgrid is loaded in, which should take roughly a minute. In the meantime, you should see two stars' telephone numbers printed, followed by the message "Finished reading {k}/27" 27 times. As the radial orders of these stars' modes are not known a priori, we try three different radial orders for the fixed radial mode. Once the grid is loaded in, you can start the analysis using
 
 ```python
-mf.analyse_observations(grid, obs_radial, n_pgs=[1,2,3])
+amphy.analyse_observations(grid, obs_radial, n_pgs=[1,2,3])
 ```
 
-On the laptop used to test this tutorial, this analysis takes roughly two minutes. In the meantime, you should see the names of the two stars being printed to the screen, which can help you understand how far along the code is. It is also likely that some warnings are printed. You can safely ignore these for now, or consult the **common warning messages** section below.
+On the laptop used to test this tutorial, this analysis took roughly two minutes. In the meantime, you should see the names of the two stars being printed to the screen, which can help you understand how far along the code is. It is also likely that some warnings pop up. You can safely ignore these for now, or consult the **common warning messages** section below.
 
 Once the analysis is complete, you should see two new subdirectories, `plots/` and `results/` have been created. Take a few minutes to explore these subdirectories. Of particular importance are `plots/HD117704/picking_npg/` and `plots/TIC465541764/picking_npg/`, which contain figures designed to help you figure out what the most likely radial order of the fixed mode is. You need to appraise and manually select the most likely radial order identifications. Try that yourself! Vanrespaille et al. (submitted) identified the most likely radial mode of HD 117704 to be n_pg=1 and that of TIC 465541764 to be n_pg=2. Do you agree?
 
