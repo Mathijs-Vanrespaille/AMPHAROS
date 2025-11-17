@@ -5,7 +5,8 @@ import scipy.interpolate as scint
 import sys
 
 from .io_functions import read_model_parameters, read_storm_tracks, \
-                          read_MESA_history_columns
+                          read_MESA_history_columns, \
+                          read_model_number_and_Xc_save
 
 
 ##### MISCELLANEOUS ############################################################
@@ -1585,29 +1586,3 @@ def find_nearest_Xc_save(tracks, Xc) :
     i = np.argmin(np.min(abs(tracks["Xcs"] - Xc)))
     Xc_save_closest = tracks["Xc_saves"][i]
     return Xc_save_closest
-
-
-def read_model_number_and_Xc_save(storm_summary_path) :
-    """
-    Get the model number and central hydrogen fraction at which MESA should have
-    saved from the name of the STORM summary file
-
-    Author: Mathijs Vanrespaille
-
-    ------- Parameters -------
-    storm_summary_path: string
-        The full or relative path to the storm summary file.
-        This file's name is expected to be formatted as
-        "storm_summary_Xc{Xc}_mn{mn}.hdf5" with Xc the central hydrogen
-        fraction, mn the model number and frot the rotation rate in c/d.
-
-    ------- Returns -------
-    mn: int
-        Model number
-    Xc: float
-        Central hydrogen fraction around which MESA saved
-    """
-    filename = os.path.basename(storm_summary_path)
-    Xc = float(substring(filename, "c", "_mn"))
-    mn = int(substring(filename, "_mn", ".hdf5"))
-    return mn, Xc
