@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-import support_functions as sf
-import io_functions as io
+from .support_functions import get_frequency_track, interpolate_frequency_track
+from .io_functions import read_MESA_history_columns
 
 
 
@@ -28,18 +28,18 @@ def make_ticks(ax):
 def plot_frequency_tracks(tracks, ls, ms, n_pgs, frot_rel=0.00,
                           interpolate=True,
                           title="",
-                          save=False, save_dir="plots/", 
+                          save=False, save_dir="plots/",
                           save_name="frequency_track",
                           show=True) :
     """
-    Make an interactive plot of the frequency tracks of the given degrees and 
+    Make an interactive plot of the frequency tracks of the given degrees and
     radial orders against the central hydrogen fraction.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     tracks: dict
-        The dictionary summarising the StORM output of a MESA run as created by 
+        The dictionary summarising the StORM output of a MESA run as created by
         read_storm_tracks
     ls: list of ints
         Degrees of the modes to be plotted
@@ -60,11 +60,11 @@ def plot_frequency_tracks(tracks, ls, ms, n_pgs, frot_rel=0.00,
         Whether to save the figure
         Defaults to False
     save_dir: string
-        Path to the directory where the figure is to be saved. Only relevant if 
+        Path to the directory where the figure is to be saved. Only relevant if
         save is True
         Defaults to "plots/"
     save_name: string
-        The filename to use when saving the figure. Only relevant if save is 
+        The filename to use when saving the figure. Only relevant if save is
         True. ".png" is automatically added at the end of the filename.
         Defaults to "frequency_track"
     show: bool
@@ -73,7 +73,7 @@ def plot_frequency_tracks(tracks, ls, ms, n_pgs, frot_rel=0.00,
 
     ------- Returns -------
     fig: matplotlib.figure.Figure
-        Figure object as the top level container of all the plot elements drawn 
+        Figure object as the top level container of all the plot elements drawn
         in this function
     ax: matplotlib.axes.Axes
         Axes object encapsulating all elements of this plot
@@ -82,7 +82,7 @@ def plot_frequency_tracks(tracks, ls, ms, n_pgs, frot_rel=0.00,
     assert len(ls) == len(ms)
 
     markers = {0:"o", 1:"^", 2:"p"} # per degree
-    colours = {-3:'navy', -2:'blue', -1:'dodgerblue', 0:"purple", 1:'violet', 
+    colours = {-3:'navy', -2:'blue', -1:'dodgerblue', 0:"purple", 1:'violet',
                2:'salmon', 3:'red', 4:'red', 5:'red'} # per radial order
 
     fig, ax = plt.subplots(1,1,figsize=(10,6))
@@ -95,19 +95,19 @@ def plot_frequency_tracks(tracks, ls, ms, n_pgs, frot_rel=0.00,
         else : # higher order g-mode
             colour = "midnightblue"
 
-        freqs = sf.get_frequency_track(tracks, l, m, n_pg, frot_rel)
+        freqs = get_frequency_track(tracks, l, m, n_pg, frot_rel)
         if np.sum(~np.isnan(freqs)) < 3 :
             continue
         ax.scatter(freqs, tracks["Xcs"], \
-                   label=f"l = {l} ; m = {m} ; n_pg = {n_pg}", 
+                   label=f"l = {l} ; m = {m} ; n_pg = {n_pg}",
                    marker=markers[l], alpha=0.7, color=colour)
         if interpolate :
-            Xcs_interp, freqs_interp = sf.interpolate_frequency_track(tracks, 
-                                                                      l, m, n_pg, 
-                                                                      frot_rel)
+            Xcs_interp, freqs_interp = interpolate_frequency_track(tracks,
+                                                                   l, m, n_pg,
+                                                                   frot_rel)
             if len(Xcs_interp) == 0 :
                 continue
-            ax.plot(freqs_interp, Xcs_interp, ls="dotted", alpha=0.7, 
+            ax.plot(freqs_interp, Xcs_interp, ls="dotted", alpha=0.7,
                     color=colour)
 
     ax.set_xlim(2, 15)
@@ -132,8 +132,8 @@ def plot_frequency_tracks(tracks, ls, ms, n_pgs, frot_rel=0.00,
 
 def add_instability_strip(ax, y_axis='logL',
                           datadir='instability_strips/', Zini='0.014', rot='0.0',
-                          IStype='both', p_mode_col='k', p_mode_ls='solid', 
-                          g_mode_col='k', g_mode_ls='dashed', 
+                          IStype='both', p_mode_col='k', p_mode_ls='solid',
+                          g_mode_col='k', g_mode_ls='dashed',
                           zorder=0, fill=False, alpha=0.2, lw=.5):
     """
     Plot the SPB and/or beta Cep instability strip(s) for a certain metallicity
@@ -155,16 +155,16 @@ def add_instability_strip(ax, y_axis='logL',
         Must be one of '0.010', '0.014', '0.020'
         Defaults to '0.014'
     rot: string
-        Rotation rate relative to the Keplerian critical rotation rate of the 
+        Rotation rate relative to the Keplerian critical rotation rate of the
         models used to compute the instability strip
         Must be one of '0.0', '0.25', '0.50'
         Defaults to '0.0'
-    IStype: 
+    IStype:
         Which instability strip(s) to plot
         Must be one of 'both', 'p-mode', 'g-mode'
         Defaults to 'both'
     p_mode_col: string
-        Matplotlib's colour to use for the lines indicating the beta Cep 
+        Matplotlib's colour to use for the lines indicating the beta Cep
         instability strip
         Defaults to 'k'
     p_mode_ls: string
@@ -172,7 +172,7 @@ def add_instability_strip(ax, y_axis='logL',
         instability strip
         Defaults to 'solid'
     g_mode_col: string
-        Matplotlib's colour to use for the lines indicating the SPB 
+        Matplotlib's colour to use for the lines indicating the SPB
         instability strip
         Defaults to 'k'
     g_mode_ls: string
@@ -183,11 +183,11 @@ def add_instability_strip(ax, y_axis='logL',
         Matplotlib's zorder to set the drawing order of the elements on an axes
         Defaults to 0
     lw: float
-        Matplotlib's linewidth to set the width of the lines indicating 
+        Matplotlib's linewidth to set the width of the lines indicating
         the instability strips
         Defaults to 0.5
     fill: bool
-        Whether to fill the space between the red and blue edges of the 
+        Whether to fill the space between the red and blue edges of the
         instability strip(s) with coloured hatching
         Defaults to False
     alpha: float
@@ -316,29 +316,29 @@ def add_instability_strip(ax, y_axis='logL',
 ##### Hertzsprung-Russell diagrams #############################################
 
 
-def plot_all_chi2_in_HRD(results, observation, n_pg_main, 
-                         show_best_model=True, show_statistical_model=False, 
-                         show_IS=False, log=False, 
-                         hollow_spectro_incompatible=False, title="", 
+def plot_all_chi2_in_HRD(results, observation, n_pg_main,
+                         show_best_model=True, show_statistical_model=False,
+                         show_IS=False, log=False,
+                         hollow_spectro_incompatible=False, title="",
                          colourmap="plasma_r", cmin=None, cmax=None,
                          save=False, save_dir="plots/", save_name="chi2_HRD",
                          show=True) :
     """
-    Plot a Hertzsprung-Russell diagram showing the model matching the first 
-    observed frequency of each evolutionary track, coloured by their chi-square. 
-    The observations are shown in black, alongside the best model in the set of 
-    provided results in cyan, if requested, and the statistical model in purple, 
-    if requested. The p-mode instability strip of Burssens et al. (2020) is 
+    Plot a Hertzsprung-Russell diagram showing the model matching the first
+    observed frequency of each evolutionary track, coloured by their chi-square.
+    The observations are shown in black, alongside the best model in the set of
+    provided results in cyan, if requested, and the statistical model in purple,
+    if requested. The p-mode instability strip of Burssens et al. (2020) is
     included if requested.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     results: list of dicts
-        The dictionaries describing all the results of comparing the given 
+        The dictionaries describing all the results of comparing the given
         observation to the grid
     observation: dict
-        The dictionary describing all the observations of a star as defined in 
+        The dictionary describing all the observations of a star as defined in
         create_observation_dict
     n_pg_main: int
         Radial order of the fixed main mode.
@@ -346,7 +346,7 @@ def plot_all_chi2_in_HRD(results, observation, n_pg_main,
         Whether to show the best fitting model.
         Defaults to True
     show_statistical_model: bool
-        Whether to show the statistical model and its the standard deviations. 
+        Whether to show the statistical model and its the standard deviations.
         Defaults to False
     show_IS: bool
         Whether to show the p-mode instability strip of Burssens et al. (2020)
@@ -355,14 +355,14 @@ def plot_all_chi2_in_HRD(results, observation, n_pg_main,
         Whether to plot chi2 on a log scale
         Defaults to False
     hollow_spectro_incompatible: bool
-        Whether to plot the models that are not compatible with the observed 
+        Whether to plot the models that are not compatible with the observed
         Teff and L using hollow symbols
         Defaults to False
     title: string
         Title of the plot
         Defaults to empty string
     colourmap: string
-        Name of the matplotlib colourmap to employ. Choose from the colourmaps 
+        Name of the matplotlib colourmap to employ. Choose from the colourmaps
         described here:
         https://matplotlib.org/stable/users/explain/colors/colormaps.html
         Defaults to "plasma"
@@ -376,12 +376,12 @@ def plot_all_chi2_in_HRD(results, observation, n_pg_main,
         Whether to save the figure
         Defaults to False
     save_dir: string
-        Path to the directory where the figure is to be saved. Only relevant if 
+        Path to the directory where the figure is to be saved. Only relevant if
         save is True
         Defaults to "plots/"
     save_name: string
-        The filename to use when saving the figure. Only relevant if save is 
-        True. The observations "name" is appended as a prefix and the 
+        The filename to use when saving the figure. Only relevant if save is
+        True. The observations "name" is appended as a prefix and the
         "save_suffix" as a suffix, alongside ".png".
         Defaults to "comparing_HRD"
     show: bool
@@ -390,7 +390,7 @@ def plot_all_chi2_in_HRD(results, observation, n_pg_main,
 
     ------- Returns -------
     fig: matplotlib.figure.Figure
-        Figure object as the top level container of all the plot elements drawn 
+        Figure object as the top level container of all the plot elements drawn
         in this function
     ax: matplotlib.axes.Axes
         Axes object encapsulating all elements of this plot
@@ -411,42 +411,42 @@ def plot_all_chi2_in_HRD(results, observation, n_pg_main,
         cmin = np.nanmin(cols)
     if cmax is None :
         cmax = np.nanmax(cols)
-    
+
     # Highlighting the observation
-    ax.errorbar(observation["log_Teff"], observation["log_L"], 
-                xerr=observation["log_Teff_err"], yerr=observation["log_L_err"], 
-                marker="s", color="black", markersize=5, zorder=2, 
+    ax.errorbar(observation["log_Teff"], observation["log_L"],
+                xerr=observation["log_Teff_err"], yerr=observation["log_L_err"],
+                marker="s", color="black", markersize=5, zorder=2,
                 label="observation")
 
     if show_statistical_model :
         # Highlighting the statistical model
         model = results["statistical_model"]
-        ax.errorbar(x=model["log_Teff_mean"], y=model["log_L_mean"], 
-                    xerr=model["log_Teff_std"], yerr=model["log_L_std"], 
-                    marker="*", color="crimson", markersize=10, zorder=3, 
+        ax.errorbar(x=model["log_Teff_mean"], y=model["log_L_mean"],
+                    xerr=model["log_Teff_std"], yerr=model["log_L_std"],
+                    marker="*", color="crimson", markersize=10, zorder=3,
                     label="statistical model")
     if show_best_model :
         # Highlighting the best fitting model
         model = results["best_model"]
         if not type(model) == float :
-            ax.scatter(model["log_Teff"], model["log_L"], marker="*", 
+            ax.scatter(model["log_Teff"], model["log_L"], marker="*",
                        color="cyan", s=150, zorder=3, label="best model")
 
     if hollow_spectro_incompatible :
         compatible = results["spectro_compatible"]
         cmap = plt.get_cmap(colourmap)
         norm = plt.Normalize(cmin, cmax)
-        ax.scatter(log_Teffs[~compatible], log_Ls[~compatible], 
-                   c=cmap(norm(cols[~compatible])), fc='none', 
+        ax.scatter(log_Teffs[~compatible], log_Ls[~compatible],
+                   c=cmap(norm(cols[~compatible])), fc='none',
                    ec=cmap(norm(cols[~compatible])), lw=1, zorder=1)
-        c = ax.scatter(log_Teffs[compatible], log_Ls[compatible], 
-                       c=cmap(norm(cols[compatible])), cmap=colourmap, 
+        c = ax.scatter(log_Teffs[compatible], log_Ls[compatible],
+                       c=cmap(norm(cols[compatible])), cmap=colourmap,
                        vmin=cmin, vmax=cmax, zorder=1)
         c.set_cmap(colourmap)
         c.set_clim(cmin, cmax)
         fig.colorbar(c, label=label)
     else :
-        c = ax.scatter(log_Teffs, log_Ls, c=cols, cmap=colourmap, vmin=cmin, 
+        c = ax.scatter(log_Teffs, log_Ls, c=cols, cmap=colourmap, vmin=cmin,
                        vmax=cmax, zorder=1)
         fig.colorbar(c, label=label)
 
@@ -454,9 +454,9 @@ def plot_all_chi2_in_HRD(results, observation, n_pg_main,
 
     if show_IS :
         add_instability_strip(ax, datadir='code/instability_strips/',
-                              zorder=0, Zini='0.014', rot='0.0', alpha=0.2, 
-                              y_axis='logL', plot_label=False, IStype='p-mode', 
-                              p_mode_col='k', fill=False, p_mode_ls='dotted', 
+                              zorder=0, Zini='0.014', rot='0.0', alpha=0.2,
+                              y_axis='logL', plot_label=False, IStype='p-mode',
+                              p_mode_col='k', fill=False, p_mode_ls='dotted',
                               g_mode_col='k', g_mode_ls='dashed', lw=.5)
 
     ax.legend(fontsize=10)
@@ -480,36 +480,36 @@ def plot_all_chi2_in_HRD(results, observation, n_pg_main,
 
 
 def plot_models_and_observed_HRD(models, observation,
-                                 use_statistical_model=False, show_IS=False, 
-                                 labels=[""], title="", save=False, 
+                                 use_statistical_model=False, show_IS=False,
+                                 labels=[""], title="", save=False,
                                  save_dir="plots/", save_name="comparing_HRD",
                                  show=True) :
     """
-    Plot a Hertzsprung-Russell diagram showing the observed effective 
-    temperature and luminosity and their uncertainties in black, alongside the 
-    provided MESA models and the corresponding evolutionary tracks. The p-mode 
+    Plot a Hertzsprung-Russell diagram showing the observed effective
+    temperature and luminosity and their uncertainties in black, alongside the
+    provided MESA models and the corresponding evolutionary tracks. The p-mode
     instability strip of Burssens et al. (2020) is included if requested.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     models: list of dicts
-        The dictionaries describing the particular models as created by 
+        The dictionaries describing the particular models as created by
         interpolate_track_to_model
     observation: dict
-        The dictionary describing all the observations of a star as defined in 
+        The dictionary describing all the observations of a star as defined in
         create_observation_dict
     use_statistical_model: bool
-        Whether the provided models are statistical models, meaning their Teff 
-        and L are means of different models and have an std. If True, we use 
-        those and show the standard deviations as errorbars. 
+        Whether the provided models are statistical models, meaning their Teff
+        and L are means of different models and have an std. If True, we use
+        those and show the standard deviations as errorbars.
         Defaults to False
     show_IS: bool
         Whether to show the p-mode instability strip of Burssens et al. (2020)
         Defaults to False
     labels: list of strings
-        The labels to be given to each model. Should be of the same length as 
-        models. 
+        The labels to be given to each model. Should be of the same length as
+        models.
         Defaults to [""]
     title: string
         Title of the plot
@@ -518,12 +518,12 @@ def plot_models_and_observed_HRD(models, observation,
         Whether to save the figure
         Defaults to False
     save_dir: string
-        Path to the directory where the figure is to be saved. Only relevant if 
+        Path to the directory where the figure is to be saved. Only relevant if
         save is True
         Defaults to "plots/"
     save_name: string
-        The filename to use when saving the figure. Only relevant if save is 
-        True. The observations "name" is appended as a prefix and the 
+        The filename to use when saving the figure. Only relevant if save is
+        True. The observations "name" is appended as a prefix and the
         "save_suffix" as a suffix, alongside ".png".
         Defaults to "comparing_HRD"
     show: bool
@@ -532,49 +532,49 @@ def plot_models_and_observed_HRD(models, observation,
 
     ------- Returns -------
     fig: matplotlib.figure.Figure
-        Figure object as the top level container of all the plot elements drawn 
+        Figure object as the top level container of all the plot elements drawn
         in this function
     ax: matplotlib.axes.Axes
         Axes object encapsulating all elements of this plot
     """
     fig, ax = plt.subplots(1,1,figsize=(10,6))
 
-    colours_dot = ["gold", "deeppink", "forestgreen", "darksalmon", 
+    colours_dot = ["gold", "deeppink", "forestgreen", "darksalmon",
                    "navy", "darkviolet"]
-    colours_track = ["orange", "hotpink", "limegreen", "lightsalmon", 
+    colours_track = ["orange", "hotpink", "limegreen", "lightsalmon",
                      "mediumblue", "violet"]
 
-    ax.errorbar(observation["log_Teff"], observation["log_L"], 
-                xerr=observation["log_Teff_err"], yerr=observation["log_L_err"], 
+    ax.errorbar(observation["log_Teff"], observation["log_L"],
+                xerr=observation["log_Teff_err"], yerr=observation["log_L_err"],
                 marker="s", color="black", markersize=5, zorder=2)
     for k,model in enumerate(models) :
         if not type(model) == dict :
             continue
         if use_statistical_model :
-            ax.errorbar(x=model["log_Teff_mean"], y=model["log_L_mean"], 
+            ax.errorbar(x=model["log_Teff_mean"], y=model["log_L_mean"],
                         xerr=model["log_Teff_std"], yerr=model["log_L_std"],
-                        marker="*", color=colours_dot[k%len(colours_dot)], 
+                        marker="*", color=colours_dot[k%len(colours_dot)],
                         markersize=10, zorder=3, label=labels[k])
         else :
-            ax.scatter(model["log_Teff"], model["log_L"], marker="*", 
-                       color=colours_dot[k%len(colours_dot)], s=150, zorder=3, 
+            ax.scatter(model["log_Teff"], model["log_L"], marker="*",
+                       color=colours_dot[k%len(colours_dot)], s=150, zorder=3,
                        label=labels[k])
-        log_Teff_history, log_L_history = io.read_MESA_history_columns(model["histfile"], 
-                                                                       ["log_Teff", "log_L"], 
-                                                                       Xc_min=model["Xc_min"], 
-                                                                       Xc_max=model["Xc_max"])
+        log_Teff_history, log_L_history = read_MESA_history_columns(model["histfile"],
+                                                                    ["log_Teff", "log_L"],
+                                                                    Xc_min=model["Xc_min"],
+                                                                    Xc_max=model["Xc_max"])
 
-        ax.plot(log_Teff_history, log_L_history, 
-                color=colours_track[k%len(colours_track)], 
+        ax.plot(log_Teff_history, log_L_history,
+                color=colours_track[k%len(colours_track)],
                 linestyle="solid", zorder=1)
 
     ax.invert_xaxis()
 
-    if show_IS: 
+    if show_IS:
         add_instability_strip(ax, datadir='code/instability_strips/',
-                              zorder=0, Zini='0.014', rot='0.0', alpha=0.2, 
-                              y_axis='logL', plot_label=False, IStype='p-mode', 
-                              p_mode_col='k', fill=False, p_mode_ls='dotted', 
+                              zorder=0, Zini='0.014', rot='0.0', alpha=0.2,
+                              y_axis='logL', plot_label=False, IStype='p-mode',
+                              p_mode_col='k', fill=False, p_mode_ls='dotted',
                               g_mode_col='k', g_mode_ls='dashed', lw=.5)
 
     ax.legend(fontsize=10)
@@ -601,16 +601,16 @@ def plot_models_and_observed_HRD(models, observation,
 ##### Parameter correlations and distributions #################################
 
 
-def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True, 
-                                  show_statistical_model=False, log=False, 
-                                  hollow_spectro_incompatible=False, title="", 
-                                  save=False, save_dir="plots/", 
+def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True,
+                                  show_statistical_model=False, log=False,
+                                  hollow_spectro_incompatible=False, title="",
+                                  save=False, save_dir="plots/",
                                   save_name="chi2_grid_params", show=True) :
     """
-    Plot the chi2 against the initial mass, envelope mixing strength and 
-    overshoot parameter for each evolutionary track in the grid. The best model 
-    in the set of provided results is shown in cyan, if requested, and the 
-    statistical model as a purple shaded area between the mean and +- its 
+    Plot the chi2 against the initial mass, envelope mixing strength and
+    overshoot parameter for each evolutionary track in the grid. The best model
+    in the set of provided results is shown in cyan, if requested, and the
+    statistical model as a purple shaded area between the mean and +- its
     standard deviation, if requested.
 
 
@@ -618,10 +618,10 @@ def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True
 
     ------- Parameters -------
     grid: dict
-        The dictionary summarising all the relevant MESA-StORM(-GYRE) grid 
+        The dictionary summarising all the relevant MESA-StORM(-GYRE) grid
         output as created by initialise_grid
     results: list of dicts
-        The dictionaries describing all the results of comparing a given 
+        The dictionaries describing all the results of comparing a given
         observation to the grid
     n_pg_main: int
         Radial order of the fixed main mode.
@@ -629,13 +629,13 @@ def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True
         Whether to show the best fitting model.
         Defaults to True
     show_statistical_model: bool
-        Whether to show the statistical model and its the standard deviations. 
+        Whether to show the statistical model and its the standard deviations.
         Defaults to False
     log: bool
         Whether to plot chi2 on a log scale
         Defaults to False
     hollow_spectro_incompatible: bool
-        Whether to plot the models that are not compatible with the observed 
+        Whether to plot the models that are not compatible with the observed
         Teff and L using hollow symbols
         Defaults to False
     title: string
@@ -645,12 +645,12 @@ def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True
         Whether to save the figure
         Defaults to False
     save_dir: string
-        Path to the directory where the figure is to be saved. Only relevant if 
+        Path to the directory where the figure is to be saved. Only relevant if
         save is True
         Defaults to "plots/"
     save_name: string
-        The filename to use when saving the figure. Only relevant if save is 
-        True. The observations "name" is appended as a prefix and the 
+        The filename to use when saving the figure. Only relevant if save is
+        True. The observations "name" is appended as a prefix and the
         "save_suffix" as a suffix, alongside ".png".
         Defaults to "comparing_HRD"
     show: bool
@@ -659,7 +659,7 @@ def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True
 
     ------- Returns -------
     fig: matplotlib.figure.Figure
-        Figure object as the top level container of all the plot elements drawn 
+        Figure object as the top level container of all the plot elements drawn
         in this function
     axs: array of matplotlib.axes.Axes
         Array of three Axes object encapsulating all elements of this plot
@@ -676,13 +676,13 @@ def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True
     ax = axs[0]
     if hollow_spectro_incompatible :
         compatible = results["spectro_compatible"]
-        ax.scatter(Ms[~compatible], chi2s[~compatible], facecolor="none", 
+        ax.scatter(Ms[~compatible], chi2s[~compatible], facecolor="none",
                    color="blue")
         ax.scatter(Ms[compatible], chi2s[compatible], color="blue")
     else :
         ax.scatter(Ms, chi2s, color="blue")
     if show_best_model and not type(index) == float :
-        ax.scatter(Ms[index], chi2s[index], marker="*", color="cyan", s=150, 
+        ax.scatter(Ms[index], chi2s[index], marker="*", color="cyan", s=150,
                    zorder=3, label="best model")
     if show_statistical_model :
         statistical_model = results["statistical_model"]
@@ -699,13 +699,13 @@ def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True
     ax = axs[1]
     ax.set_title(title, fontsize=12)
     if hollow_spectro_incompatible :
-        ax.scatter(logDs[~compatible], chi2s[~compatible], facecolor="none", 
+        ax.scatter(logDs[~compatible], chi2s[~compatible], facecolor="none",
                    color="blue")
         ax.scatter(logDs[compatible], chi2s[compatible], color="blue")
     else :
         ax.scatter(logDs, chi2s, color="blue")
     if show_best_model and not type(index) == float :
-        ax.scatter(logDs[index], chi2s[index], marker="*", color="cyan", s=150, 
+        ax.scatter(logDs[index], chi2s[index], marker="*", color="cyan", s=150,
                    zorder=3, label="best model")
     if show_statistical_model :
         mean = statistical_model["logD_mean"]
@@ -720,13 +720,13 @@ def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True
 
     ax = axs[2]
     if hollow_spectro_incompatible :
-        ax.scatter(fovs[~compatible], chi2s[~compatible], facecolor="none", 
+        ax.scatter(fovs[~compatible], chi2s[~compatible], facecolor="none",
                    color="blue")
         ax.scatter(fovs[compatible], chi2s[compatible], color="blue")
     else :
         ax.scatter(fovs, chi2s, color="blue")
     if show_best_model and not type(index) == float :
-        ax.scatter(fovs[index], chi2s[index], marker="*", color="cyan", s=150, 
+        ax.scatter(fovs[index], chi2s[index], marker="*", color="cyan", s=150,
                    zorder=3, label="best model")
     if show_statistical_model :
         mean = statistical_model["fov_mean"]
@@ -754,30 +754,30 @@ def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True
     return fig, axs
 
 
-def plot_chi2_against_model_params(results, show_best_model=True, 
-                                   show_statistical_model=False, chi2_log=False, 
-                                   age_log=False, 
+def plot_chi2_against_model_params(results, show_best_model=True,
+                                   show_statistical_model=False, chi2_log=False,
+                                   age_log=False,
                                    hollow_spectro_incompatible=False,
-                                   title="", save=False, save_dir="plots/", 
+                                   title="", save=False, save_dir="plots/",
                                    save_name="model_scatter", show=True) :
     """
-    Scatterplots of chi2 against each evolutionary track's model optimised 
-    central hydrogen fraction, age in years and selected rotation rate. The best 
-    model is highlighted by cyan star, if requested, and the statistical model 
-    as a purple shaded area between the mean and +- its standard deviation, if 
+    Scatterplots of chi2 against each evolutionary track's model optimised
+    central hydrogen fraction, age in years and selected rotation rate. The best
+    model is highlighted by cyan star, if requested, and the statistical model
+    as a purple shaded area between the mean and +- its standard deviation, if
     requested.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     results: list of dicts
-        The dictionaries describing all the results of comparing a given 
+        The dictionaries describing all the results of comparing a given
         observation to the grid
     show_best_model: bool
         Whether to show the best fitting model.
         Defaults to True
     show_statistical_model: bool
-        Whether to show the statistical model and its the standard deviations. 
+        Whether to show the statistical model and its the standard deviations.
         Defaults to False
     chi2_log: bool
         Whether to plot chi2 on a log scale
@@ -785,9 +785,9 @@ def plot_chi2_against_model_params(results, show_best_model=True,
     age_log: bool
         Whether to plot the age on a log scale
     hollow_spectro_incompatible: bool
-        Whether to plot the models that are not compatible with the observed 
+        Whether to plot the models that are not compatible with the observed
         Teff and L using hollow symbols
-        Defaults to False        
+        Defaults to False
     title: string
         Title of the plot
         Defaults to empty string
@@ -795,12 +795,12 @@ def plot_chi2_against_model_params(results, show_best_model=True,
         Whether to save the figure
         Defaults to False
     save_dir: string
-        Path to the directory where the figure is to be saved. Only relevant if 
+        Path to the directory where the figure is to be saved. Only relevant if
         save is True
         Defaults to "plots/"
     save_name: string
-        The filename to use when saving the figure. Only relevant if save is 
-        True. The observations "name" is appended as a prefix and the 
+        The filename to use when saving the figure. Only relevant if save is
+        True. The observations "name" is appended as a prefix and the
         "save_suffix" as a suffix, alongside ".png".
         Defaults to "comparing_HRD"
     show: bool
@@ -809,7 +809,7 @@ def plot_chi2_against_model_params(results, show_best_model=True,
 
     ------- Returns -------
     fig: matplotlib.figure.Figure
-        Figure object as the top level container of all the plot elements drawn 
+        Figure object as the top level container of all the plot elements drawn
         in this function
     axs: array of matplotlib.axes.Axes
         Array of three Axes object encapsulating all elements of this plot
@@ -826,7 +826,7 @@ def plot_chi2_against_model_params(results, show_best_model=True,
 
     ax = axs[0]
     if hollow_spectro_incompatible :
-        ax.scatter(Xcs_cross[~compatible], chi2s[~compatible], facecolor="none", 
+        ax.scatter(Xcs_cross[~compatible], chi2s[~compatible], facecolor="none",
                    color="blue")
         ax.scatter(Xcs_cross[compatible], chi2s[compatible], color="blue")
     else :
@@ -835,7 +835,7 @@ def plot_chi2_against_model_params(results, show_best_model=True,
         model_best = results["best_model"]
         if not type(model_best) == float :
             chi2_best = results["chi2s"][results["best_model_index"]]
-            ax.scatter(model_best["Xc"], chi2_best, marker="*", color="cyan", 
+            ax.scatter(model_best["Xc"], chi2_best, marker="*", color="cyan",
                        s=150, zorder=3)
     if show_statistical_model :
         statistical_model = results["statistical_model"]
@@ -852,13 +852,13 @@ def plot_chi2_against_model_params(results, show_best_model=True,
     ax = axs[1]
     ax.set_title(title, fontsize=12)
     if hollow_spectro_incompatible :
-        ax.scatter(ages_cross[~compatible], chi2s[~compatible], 
+        ax.scatter(ages_cross[~compatible], chi2s[~compatible],
                    facecolor="none", color="blue")
         ax.scatter(ages_cross[compatible], chi2s[compatible], color="blue")
     else :
         ax.scatter(ages_cross, chi2s, color="blue")
     if show_best_model :
-        ax.scatter(model_best["age"], chi2_best, marker="*", color="cyan", 
+        ax.scatter(model_best["age"], chi2_best, marker="*", color="cyan",
                    s=150, zorder=3)
     if show_statistical_model :
         mean = statistical_model["age_mean"]
@@ -875,13 +875,13 @@ def plot_chi2_against_model_params(results, show_best_model=True,
 
     ax = axs[2]
     if hollow_spectro_incompatible :
-        ax.scatter(frots_best[~compatible], chi2s[~compatible], 
+        ax.scatter(frots_best[~compatible], chi2s[~compatible],
                    facecolor="none", color="blue")
         ax.scatter(frots_best[compatible], chi2s[compatible], color="blue")
     else :
         ax.scatter(frots_best, chi2s, color="blue")
     if show_best_model :
-        ax.scatter(model_best["frot_best"], chi2_best, marker="*", color="cyan", 
+        ax.scatter(model_best["frot_best"], chi2_best, marker="*", color="cyan",
                    s=150, zorder=3)
     if show_statistical_model :
         mean = statistical_model["frot_mean"]
@@ -909,47 +909,47 @@ def plot_chi2_against_model_params(results, show_best_model=True,
     return
 
 
-def plot_chi2_coloured_grid_params(grid, results, show_best_model=True, 
-                                   show_statistical_model=False, log=False, 
-                                   only_plot_compatible=False, title="", 
+def plot_chi2_coloured_grid_params(grid, results, show_best_model=True,
+                                   show_statistical_model=False, log=False,
+                                   only_plot_compatible=False, title="",
                                    colourmap="plasma_r", cmin=None, cmax=None,
-                                   save=False, save_dir="plots/", 
+                                   save=False, save_dir="plots/",
                                    save_name="chi2_coloured_grid_params",
                                    show=True) :
     """
-    Scatterplots between mass, envelope mixing strength and overshooting 
-    parameters coloured by chi2. The scattered dots are ordered such that the 
-    best chi2 is always plotted on top. The best model is highlighted by a cyan 
-    star, if requested, and the statistical model and its standard deviation is 
-    plotted as a purple star, if requested. 
+    Scatterplots between mass, envelope mixing strength and overshooting
+    parameters coloured by chi2. The scattered dots are ordered such that the
+    best chi2 is always plotted on top. The best model is highlighted by a cyan
+    star, if requested, and the statistical model and its standard deviation is
+    plotted as a purple star, if requested.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     grid: dict
-        The dictionary summarising all the relevant MESA-StORM(-GYRE) grid 
+        The dictionary summarising all the relevant MESA-StORM(-GYRE) grid
         output as created by initialise_grid
     results: list of dicts
-        The dictionaries describing all the results of comparing a given 
+        The dictionaries describing all the results of comparing a given
         observation to the grid
     show_best_model: bool
         Whether to show the best fitting model.
         Defaults to True
     show_statistical_model: bool
-        Whether to show the statistical model and its the standard deviations. 
+        Whether to show the statistical model and its the standard deviations.
         Defaults to False
     log: bool
         Whether to plot chi2 on a log scale
         Defaults to False
     only_plot_compatible: bool
-        Whether to exclude the best models that do not match the effective 
+        Whether to exclude the best models that do not match the effective
         temperature and luminosity observations
         Defaults to False
     title: string
         Title of the plot
         Defaults to empty string
     colourmap: string
-        Name of the matplotlib colourmap to employ. Choose from the colourmaps 
+        Name of the matplotlib colourmap to employ. Choose from the colourmaps
         described here:
         https://matplotlib.org/stable/users/explain/colors/colormaps.html
         Defaults to "plasma"
@@ -963,12 +963,12 @@ def plot_chi2_coloured_grid_params(grid, results, show_best_model=True,
         Whether to save the figure
         Defaults to False
     save_dir: string
-        Path to the directory where the figure is to be saved. Only relevant if 
+        Path to the directory where the figure is to be saved. Only relevant if
         save is True
         Defaults to "plots/"
     save_name: string
-        The filename to use when saving the figure. Only relevant if save is 
-        True. The observations "name" is appended as a prefix and the 
+        The filename to use when saving the figure. Only relevant if save is
+        True. The observations "name" is appended as a prefix and the
         "save_suffix" as a suffix, alongside ".png".
         Defaults to "comparing_HRD"
     show: bool
@@ -977,7 +977,7 @@ def plot_chi2_coloured_grid_params(grid, results, show_best_model=True,
 
     ------- Returns -------
     fig: matplotlib.figure.Figure
-        Figure object as the top level container of all the plot elements drawn 
+        Figure object as the top level container of all the plot elements drawn
         in this function
     axs: array of matplotlib.axes.Axes
         Array of three Axes object encapsulating all elements of this plot
@@ -1016,18 +1016,18 @@ def plot_chi2_coloured_grid_params(grid, results, show_best_model=True,
         Ms = Ms[compatible]
         logDs = logDs[compatible]
         fovs = fovs[compatible]
-    
+
     ax = axs[0]
     if log :
-        ax.scatter(logDs, Ms, c=np.log10(chi2s), cmap=colourmap, vmin=cmin, 
+        ax.scatter(logDs, Ms, c=np.log10(chi2s), cmap=colourmap, vmin=cmin,
                    vmax=cmax, zorder=1, s=20)
     else :
-        ax.scatter(logDs, Ms, c=chi2s, cmap=colourmap, vmin=cmin, vmax=cmax, 
+        ax.scatter(logDs, Ms, c=chi2s, cmap=colourmap, vmin=cmin, vmax=cmax,
                    zorder=1, s=20)
     if show_best_model :
         ax.scatter(logD_best, M_best, color="cyan", marker="*", s=100)
     if show_best_model and not type(index) == float :
-        ax.errorbar(x=logD_mean, y=M_mean, xerr=logD_std, yerr=M_std, 
+        ax.errorbar(x=logD_mean, y=M_mean, xerr=logD_std, yerr=M_std,
                     color="crimson", marker="*", markersize=10)
     ax.set_xlabel(r"$\log{(D_\mathrm{mix})}$ [$cm^2/s$]", fontsize=10)
     ax.set_ylabel(r"M [M$_\odot$]", fontsize=10)
@@ -1035,30 +1035,30 @@ def plot_chi2_coloured_grid_params(grid, results, show_best_model=True,
     ax = axs[1]
     ax.set_title(title, fontsize=12)
     if log :
-        ax.scatter(fovs, Ms, c=np.log10(chi2s), cmap=colourmap, vmin=cmin, 
+        ax.scatter(fovs, Ms, c=np.log10(chi2s), cmap=colourmap, vmin=cmin,
                    vmax=cmax, zorder=1, s=20)
     else :
-        ax.scatter(fovs, Ms, c=chi2s, cmap=colourmap, vmin=cmin, vmax=cmax, 
+        ax.scatter(fovs, Ms, c=chi2s, cmap=colourmap, vmin=cmin, vmax=cmax,
                    zorder=1, s=20)
     if show_best_model and not type(index) == float :
         ax.scatter(fov_best, M_best, color="cyan", marker="*", s=100)
     if show_statistical_model :
-        ax.errorbar(x=fov_mean, y=M_mean, xerr=fov_std, yerr=M_std, 
+        ax.errorbar(x=fov_mean, y=M_mean, xerr=fov_std, yerr=M_std,
                     color="crimson", marker="*", markersize=10)
     ax.set_xlabel(r"f$_\mathrm{ov}$", fontsize=10)
     ax.set_ylabel(r"M [M$_\odot$]", fontsize=10)
 
     ax = axs[2]
     if log :
-        c = ax.scatter(logDs, fovs, c=np.log10(chi2s), cmap=colourmap, 
+        c = ax.scatter(logDs, fovs, c=np.log10(chi2s), cmap=colourmap,
                        vmin=cmin, vmax=cmax, zorder=1, s=20)
     else :
-        c = ax.scatter(logDs, fovs, c=chi2s, cmap=colourmap, vmin=cmin, 
+        c = ax.scatter(logDs, fovs, c=chi2s, cmap=colourmap, vmin=cmin,
                        vmax=cmax, zorder=1, s=20)
     if show_best_model and not type(index) == float :
         ax.scatter(logD_best, fov_best, color="cyan", marker="*", s=100)
     if show_statistical_model :
-        ax.errorbar(x=logD_mean, y=fov_mean, xerr=logD_std, yerr=fov_std, 
+        ax.errorbar(x=logD_mean, y=fov_mean, xerr=logD_std, yerr=fov_std,
                     color="crimson", marker="*", markersize=10)
     ax.set_xlabel(r"$\log{(D_\mathrm{mix})}$ [$cm^2/s$]", fontsize=10)
     ax.set_ylabel(r"f$_\mathrm{ov}$", fontsize=10)
@@ -1083,46 +1083,46 @@ def plot_chi2_coloured_grid_params(grid, results, show_best_model=True,
     return fig, axs
 
 
-def plot_grid_params_chi2_corner(grid, results, show_best_model=True, 
-                                 show_statistical_model=False, log=False, 
-                                 hollow_spectro_incompatible=False, title="", 
+def plot_grid_params_chi2_corner(grid, results, show_best_model=True,
+                                 show_statistical_model=False, log=False,
+                                 hollow_spectro_incompatible=False, title="",
                                  colourmap="plasma_r", cmin=None, cmax=None,
-                                 save=False, save_dir="plots/", 
+                                 save=False, save_dir="plots/",
                                  save_name="chi2_coloured_grid_params",
                                  show=True) :
     """
-    A custom corner plot the relations betweem mass, envelope mixing strength 
-    and overshooting parameters and chi2. The scattered dots are ordered such 
-    that the best chi2 is always plotted on top. The best model is highlighted 
+    A custom corner plot the relations betweem mass, envelope mixing strength
+    and overshooting parameters and chi2. The scattered dots are ordered such
+    that the best chi2 is always plotted on top. The best model is highlighted
     by a cyan star
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     grid: dict
-        The dictionary summarising all the relevant MESA-StORM(-GYRE) grid 
+        The dictionary summarising all the relevant MESA-StORM(-GYRE) grid
         output as created by initialise_grid
     results: list of dicts
-        The dictionaries describing all the results of comparing a given 
+        The dictionaries describing all the results of comparing a given
         observation to the grid
     show_best_model: bool
         Whether to show the best fitting model.
         Defaults to True
     show_statistical_model: bool
-        Whether to show the statistical model and its the standard deviations. 
+        Whether to show the statistical model and its the standard deviations.
         Defaults to False
     log: bool
         Whether to plot the chi2 colourbar as a log scale
         Defaults to False
     hollow_spectro_incompatible: bool
-        Whether to plot the models that are not compatible with the observed 
+        Whether to plot the models that are not compatible with the observed
         Teff and L using hollow symbols
         Defaults to False
     show_best_model: bool
         Whether to show the best fitting model.
         Defaults to True
     show_statistical_model: bool
-        Whether to show the statistical model and its the standard deviations. 
+        Whether to show the statistical model and its the standard deviations.
         Defaults to False
     log: bool
         Whether to plot chi2 on a log scale
@@ -1131,7 +1131,7 @@ def plot_grid_params_chi2_corner(grid, results, show_best_model=True,
         Title of the plot
         Defaults to empty string
     colourmap: string
-        Name of the matplotlib colourmap to employ. Choose from the colourmaps 
+        Name of the matplotlib colourmap to employ. Choose from the colourmaps
         described here:
         https://matplotlib.org/stable/users/explain/colors/colormaps.html
         Defaults to "plasma"
@@ -1145,12 +1145,12 @@ def plot_grid_params_chi2_corner(grid, results, show_best_model=True,
         Whether to save the figure
         Defaults to False
     save_dir: string
-        Path to the directory where the figure is to be saved. Only relevant if 
+        Path to the directory where the figure is to be saved. Only relevant if
         save is True
         Defaults to "plots/"
     save_name: string
-        The filename to use when saving the figure. Only relevant if save is 
-        True. The observations "name" is appended as a prefix and the 
+        The filename to use when saving the figure. Only relevant if save is
+        True. The observations "name" is appended as a prefix and the
         "save_suffix" as a suffix, alongside ".png".
         Defaults to "comparing_HRD"
     show: bool
@@ -1159,7 +1159,7 @@ def plot_grid_params_chi2_corner(grid, results, show_best_model=True,
 
     ------- Returns -------
     fig: matplotlib.figure.Figure
-        Figure object as the top level container of all the plot elements drawn 
+        Figure object as the top level container of all the plot elements drawn
         in this function
     axs: array of matplotlib.axes.Axes
         Array of three Axes object encapsulating all elements of this plot
@@ -1179,11 +1179,11 @@ def plot_grid_params_chi2_corner(grid, results, show_best_model=True,
         data_best = [Ms[index], logDs[index], fovs[index]]
     if show_statistical_model :
         statistical_model = results["statistical_model"]
-        data_means = [statistical_model["M_mean"], 
-                      statistical_model["logD_mean"], 
+        data_means = [statistical_model["M_mean"],
+                      statistical_model["logD_mean"],
                       statistical_model["fov_mean"]]
-        data_stds = [statistical_model["M_std"], 
-                     statistical_model["logD_std"], 
+        data_stds = [statistical_model["M_std"],
+                     statistical_model["logD_std"],
                      statistical_model["fov_std"]]
 
     I_toKeep = ~np.isnan(chi2s)
@@ -1195,7 +1195,7 @@ def plot_grid_params_chi2_corner(grid, results, show_best_model=True,
     I = np.argsort(-chi2s) # Indices to sort from largest to smallest chi2
     chi2s = chi2s[I]
     data = [Ms[I], logDs[I], fovs[I]]
-    labels = [r"M [M$_\odot$]", r"$\log{(D_\mathrm{mix})}$ [$cm^2/s$]", 
+    labels = [r"M [M$_\odot$]", r"$\log{(D_\mathrm{mix})}$ [$cm^2/s$]",
               r"f$_\mathrm{ov}$"]
 
     for i in range(3) :
@@ -1204,22 +1204,22 @@ def plot_grid_params_chi2_corner(grid, results, show_best_model=True,
             if i == j :
                 if hollow_spectro_incompatible :
                     compatible = results["spectro_compatible"][I]
-                    ax.scatter(data[i][~compatible], chi2s[~compatible], 
+                    ax.scatter(data[i][~compatible], chi2s[~compatible],
                                fc='none', lw=1, zorder=1, color="blue", s=20)
-                    ax.scatter(data[i][compatible], chi2s[compatible], zorder=1, 
+                    ax.scatter(data[i][compatible], chi2s[compatible], zorder=1,
                                color="blue", s=20)
                 else :
                     ax.scatter(data[i], chi2s, color="blue", s=20)
                 if show_best_model :
-                    ax.scatter(data_best[i], chi2_best, color="cyan", 
+                    ax.scatter(data_best[i], chi2_best, color="cyan",
                                marker="*", s=100)
                 if show_statistical_model :
-                    ax.axvspan(data_means[i]-data_stds[i], 
-                               data_means[i]+data_stds[i], 
+                    ax.axvspan(data_means[i]-data_stds[i],
+                               data_means[i]+data_stds[i],
                                alpha=0.5, color="crimson")
                 ax.set_xlabel(labels[i], fontsize=10)
                 ax.set_ylabel(r"$\chi^2$", fontsize=10)
-                ax.tick_params(bottom=True, left=True, top=True, right=True, 
+                ax.tick_params(bottom=True, left=True, top=True, right=True,
                                which='both')
                 ax.minorticks_on()
                 if log :
@@ -1237,24 +1237,24 @@ def plot_grid_params_chi2_corner(grid, results, show_best_model=True,
                 if hollow_spectro_incompatible :
                     cmap = plt.get_cmap(colourmap)
                     norm = plt.Normalize(cmin, cmax)
-                    ax.scatter(data[i][~compatible], data[j][~compatible], 
-                               c=cmap(norm(cols[~compatible])), fc='none', 
+                    ax.scatter(data[i][~compatible], data[j][~compatible],
+                               c=cmap(norm(cols[~compatible])), fc='none',
                                ec=cmap(norm(cols[~compatible])), lw=1, zorder=1)
-                    c = ax.scatter(data[i][compatible], data[j][compatible], 
-                                   c=cmap(norm(cols[compatible])), 
-                                   cmap=colourmap, vmin=cmin, vmax=cmax, 
+                    c = ax.scatter(data[i][compatible], data[j][compatible],
+                                   c=cmap(norm(cols[compatible])),
+                                   cmap=colourmap, vmin=cmin, vmax=cmax,
                                    zorder=1)
                     c.set_cmap(colourmap)
                     c.set_clim(cmin, cmax)
                 else :
-                    c = ax.scatter(data[i], data[j], c=cols, cmap=colourmap, 
+                    c = ax.scatter(data[i], data[j], c=cols, cmap=colourmap,
                                    vmin=cmin, vmax=cmax, zorder=1, s=20)
                 if show_best_model :
-                    ax.scatter(data_best[i], data_best[j], color="cyan", 
+                    ax.scatter(data_best[i], data_best[j], color="cyan",
                                marker="*", s=100)
                 if show_statistical_model :
-                    ax.errorbar(x=data_means[i], y=data_means[j], 
-                                xerr=data_stds[i], yerr=data_stds[j], 
+                    ax.errorbar(x=data_means[i], y=data_means[j],
+                                xerr=data_stds[i], yerr=data_stds[j],
                                 color="crimson", marker="*", markersize=10)
                 ax.set_xlabel(labels[i], fontsize=10)
                 ax.set_ylabel(labels[j], fontsize=10)
@@ -1276,27 +1276,27 @@ def plot_grid_params_chi2_corner(grid, results, show_best_model=True,
     return
 
 
-def plot_model_params_histograms(results, age_log=False, 
-                                 hollow_spectro_incompatible=False, title="", 
-                                 save=False, save_dir="plots/", 
+def plot_model_params_histograms(results, age_log=False,
+                                 hollow_spectro_incompatible=False, title="",
+                                 save=False, save_dir="plots/",
                                  save_name="model_histograms", show=True) :
     """
-    Plot histograms of each evolutionary track's model matching the main mode's 
-    frequency against central hydrogen fraction, age in years and selected 
+    Plot histograms of each evolutionary track's model matching the main mode's
+    frequency against central hydrogen fraction, age in years and selected
     rotation rate. The best model is highlighted by a dashed cyan vertical line.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     results: list of dicts
-        The dictionaries describing all the results of comparing a given 
+        The dictionaries describing all the results of comparing a given
         observation to the grid
     age_log: bool
         Whether to plot the age in the second panel on a log scale
         Defaults to False
     hollow_spectro_incompatible: bool
-        Whether to separate the models incompatible with the observed Teff and L 
-        and plot them as a hollow histogram on top of the compatible models as a 
+        Whether to separate the models incompatible with the observed Teff and L
+        and plot them as a hollow histogram on top of the compatible models as a
         solid histogram
         Defaults to False
     title: string
@@ -1306,12 +1306,12 @@ def plot_model_params_histograms(results, age_log=False,
         Whether to save the figure
         Defaults to False
     save_dir: string
-        Path to the directory where the figure is to be saved. Only relevant if 
+        Path to the directory where the figure is to be saved. Only relevant if
         save is True
         Defaults to "plots/"
     save_name: string
-        The filename to use when saving the figure. Only relevant if save is 
-        True. The observations "name" is appended as a prefix and the 
+        The filename to use when saving the figure. Only relevant if save is
+        True. The observations "name" is appended as a prefix and the
         "save_suffix" as a suffix, alongside ".png".
         Defaults to "comparing_HRD"
     show: bool
@@ -1320,7 +1320,7 @@ def plot_model_params_histograms(results, age_log=False,
 
     ------- Returns -------
     fig: matplotlib.figure.Figure
-        Figure object as the top level container of all the plot elements drawn 
+        Figure object as the top level container of all the plot elements drawn
         in this function
     axs: array of matplotlib.axes.Axes
         Array of three Axes object encapsulating all elements of this plot
@@ -1328,13 +1328,13 @@ def plot_model_params_histograms(results, age_log=False,
     """
 
     fig, axs = plt.subplots(1, 3, figsize=(15,5))
-    
+
     ax = axs[0]
     if hollow_spectro_incompatible :
         compatible = results["spectro_compatible"]
-        (n, bins, patches) = ax.hist(results["Xcs_cross"], bins=50, fill=False, 
+        (n, bins, patches) = ax.hist(results["Xcs_cross"], bins=50, fill=False,
                                      color="navy")
-        ax.hist(results["Xcs_cross"][compatible], bins=bins, fill=True, 
+        ax.hist(results["Xcs_cross"][compatible], bins=bins, fill=True,
                 color="navy")
     else :
         ax.hist(results["Xcs_cross"], bins=50, color="navy")
@@ -1365,9 +1365,9 @@ def plot_model_params_histograms(results, age_log=False,
 
     ax = axs[2]
     if hollow_spectro_incompatible :
-        (n, bins, patches) = ax.hist(results["frots_best"], bins=50, fill=False, 
+        (n, bins, patches) = ax.hist(results["frots_best"], bins=50, fill=False,
                                      color="navy")
-        ax.hist(results["frots_best"][compatible], bins=bins, fill=True, 
+        ax.hist(results["frots_best"][compatible], bins=bins, fill=True,
                 color="navy")
     else :
         ax.hist(results["frots_best"], bins=50, color="navy")
@@ -1388,29 +1388,29 @@ def plot_model_params_histograms(results, age_log=False,
         plt.close()
 
 
-def plot_Xc_grid_params(grid, results, show_best_model=True, 
-                        show_statistical_model=False, 
-                        hollow_spectro_incompatible=False, title="", save=False, 
+def plot_Xc_grid_params(grid, results, show_best_model=True,
+                        show_statistical_model=False,
+                        hollow_spectro_incompatible=False, title="", save=False,
                         save_dir="plots/", save_name="model_histograms",
                         show=True) :
     """
-    Plot histograms of each evolutionary track's model matching the main mode 
-    frequency against central hydrogen fraction, age in years and selected 
-    rotation rate. The best model is highlighted by a cyan star, if requested, 
+    Plot histograms of each evolutionary track's model matching the main mode
+    frequency against central hydrogen fraction, age in years and selected
+    rotation rate. The best model is highlighted by a cyan star, if requested,
     and the statistical model in purple, if requested.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     results: list of dicts
-        The dictionaries describing all the results of comparing a given 
+        The dictionaries describing all the results of comparing a given
         observation to the grid
     age_log: bool
         Whether to plot the age in the second panel on a log scale
         Defaults to False
     hollow_spectro_incompatible: bool
-        Whether to separate the models incompatible with the observed Teff and L 
-        and plot them as a hollow histogram on top of the compatible models as a 
+        Whether to separate the models incompatible with the observed Teff and L
+        and plot them as a hollow histogram on top of the compatible models as a
         solid histogram
         Defaults to False
     title: string
@@ -1420,12 +1420,12 @@ def plot_Xc_grid_params(grid, results, show_best_model=True,
         Whether to save the figure
         Defaults to False
     save_dir: string
-        Path to the directory where the figure is to be saved. Only relevant if 
+        Path to the directory where the figure is to be saved. Only relevant if
         save is True
         Defaults to "plots/"
     save_name: string
-        The filename to use when saving the figure. Only relevant if save is 
-        True. The observations "name" is appended as a prefix and the 
+        The filename to use when saving the figure. Only relevant if save is
+        True. The observations "name" is appended as a prefix and the
         "save_suffix" as a suffix, alongside ".png".
         Defaults to "comparing_HRD"
     show: bool
@@ -1434,7 +1434,7 @@ def plot_Xc_grid_params(grid, results, show_best_model=True,
 
     ------- Returns -------
     fig: matplotlib.figure.Figure
-        Figure object as the top level container of all the plot elements drawn 
+        Figure object as the top level container of all the plot elements drawn
         in this function
     axs: array of matplotlib.axes.Axes
         Array of three Axes object encapsulating all elements of this plot
@@ -1467,7 +1467,7 @@ def plot_Xc_grid_params(grid, results, show_best_model=True,
     ax = axs[0]
     if hollow_spectro_incompatible :
         compatible = results["spectro_compatible"]
-        ax.scatter(Ms[~compatible], Xcs[~compatible], facecolor="none", 
+        ax.scatter(Ms[~compatible], Xcs[~compatible], facecolor="none",
                    edgecolor="blue")
         ax.scatter(Ms[compatible], Xcs[compatible], color="blue")
     else :
@@ -1475,7 +1475,7 @@ def plot_Xc_grid_params(grid, results, show_best_model=True,
     if show_best_model :
         ax.scatter(M_best, Xc_best, marker="*", color="cyan", s=150, zorder=3)
     if show_statistical_model :
-        ax.errorbar(x=M_mean, y=Xc_mean, xerr=M_std, yerr=Xc_std, marker="*", 
+        ax.errorbar(x=M_mean, y=Xc_mean, xerr=M_std, yerr=Xc_std, marker="*",
                     color="crimson", markersize=10, zorder=3)
     ax.set_xlabel(r"M [M$_\odot$]", fontsize=12)
     ax.set_ylabel(r"Xc", fontsize=12)
@@ -1485,16 +1485,16 @@ def plot_Xc_grid_params(grid, results, show_best_model=True,
     ax = axs[1]
     if hollow_spectro_incompatible :
         compatible = results["spectro_compatible"]
-        ax.scatter(logDs[~compatible], Xcs[~compatible], facecolor="none", 
+        ax.scatter(logDs[~compatible], Xcs[~compatible], facecolor="none",
                    color="blue")
         ax.scatter(logDs[compatible], Xcs[compatible], color="blue")
     else :
         ax.scatter(logDs, Xcs, color="blue")
     if show_best_model :
-        ax.scatter(logD_best, Xc_best, marker="*", color="cyan", s=150, 
+        ax.scatter(logD_best, Xc_best, marker="*", color="cyan", s=150,
                    zorder=3)
     if show_statistical_model :
-        ax.errorbar(x=logD_mean, y=Xc_mean, xerr=logD_std, yerr=Xc_std, 
+        ax.errorbar(x=logD_mean, y=Xc_mean, xerr=logD_std, yerr=Xc_std,
                     marker="*", color="crimson", markersize=10, zorder=3)
     ax.set_xlabel(r"$\log{(D_\mathrm{mix})}$ [$cm^2/s$]", fontsize=12)
     ax.set_ylabel(r"Xc", fontsize=12)
@@ -1505,7 +1505,7 @@ def plot_Xc_grid_params(grid, results, show_best_model=True,
     ax = axs[2]
     if hollow_spectro_incompatible :
         compatible = results["spectro_compatible"]
-        ax.scatter(fovs[~compatible], Xcs[~compatible], facecolor="none", 
+        ax.scatter(fovs[~compatible], Xcs[~compatible], facecolor="none",
                    color="blue")
         ax.scatter(fovs[compatible], Xcs[compatible], color="blue")
     else :
@@ -1513,7 +1513,7 @@ def plot_Xc_grid_params(grid, results, show_best_model=True,
     if show_best_model :
         ax.scatter(fov_best, Xc_best, marker="*", color="cyan", s=150, zorder=3)
     if show_statistical_model :
-        ax.errorbar(x=fov_mean, y=Xc_mean, xerr=fov_std, yerr=Xc_std, 
+        ax.errorbar(x=fov_mean, y=Xc_mean, xerr=fov_std, yerr=Xc_std,
                     marker="*", color="crimson", markersize=10, zorder=3)
     ax.set_xlabel(r"f$_\mathrm{ov}$", fontsize=12)
     ax.set_ylabel(r"Xc", fontsize=12)
@@ -1538,37 +1538,37 @@ def plot_Xc_grid_params(grid, results, show_best_model=True,
 
 
 def plot_model_and_observed_frequencies(model, observation, n_pg_main, title="",
-                                        save=False, save_dir="plots/", 
-                                        save_name="comparing_frequencies", 
+                                        save=False, save_dir="plots/",
+                                        save_name="comparing_frequencies",
                                         show=True) :
     """
-    Plot all observed frequencies alongside all potential frequencies predicted 
-    for the given model. Observed frequencies and the square root of their 
-    amplitudes are shown as solid grey vertical lines, with the identified modes 
+    Plot all observed frequencies alongside all potential frequencies predicted
+    for the given model. Observed frequencies and the square root of their
+    amplitudes are shown as solid grey vertical lines, with the identified modes
     highlighted in black. The identified modes' lines are topped with a symbol
-    whose shape represents the degree: dots for radial modes, triangles for 
-    dipole modes and pentagons for quintuplets. The model's predicted 
-    frequencies are shown as vertical lines covering the full plot as their 
-    amplitudes are unknown, containing a symbol representing the degree at a 
-    y-value representing the radial order shown on the right axis. The linestyle 
-    also shows the degree: dashed lines for radial degrees, dotted for dipoles 
+    whose shape represents the degree: dots for radial modes, triangles for
+    dipole modes and pentagons for quintuplets. The model's predicted
+    frequencies are shown as vertical lines covering the full plot as their
+    amplitudes are unknown, containing a symbol representing the degree at a
+    y-value representing the radial order shown on the right axis. The linestyle
+    also shows the degree: dashed lines for radial degrees, dotted for dipoles
     and dashdotted for quintuplets. Similar lines in light green and olive
-    connect frequencies belonging to the same predicted or identified observed 
-    modes. Likewise, the radial order is also indicated by the colour, with 
-    g-modes in blueish tints, specifically n_pg=-3 in navy, -2 in blue and 
-    -1 in dodgerblue, while f-modes are in purple and p-modes in reddish tints, 
-    specifically n_pg=1 in salmon, 2 in tomato and 3 in red. If the observations 
-    provide the radial order of the identified modes, these will use the same 
+    connect frequencies belonging to the same predicted or identified observed
+    modes. Likewise, the radial order is also indicated by the colour, with
+    g-modes in blueish tints, specifically n_pg=-3 in navy, -2 in blue and
+    -1 in dodgerblue, while f-modes are in purple and p-modes in reddish tints,
+    specifically n_pg=1 in salmon, 2 in tomato and 3 in red. If the observations
+    provide the radial order of the identified modes, these will use the same
     colours scheme.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     model: dict
-        The dictionary describing the particular model as created by 
+        The dictionary describing the particular model as created by
         interpolate_track_to_model
     observation: dict
-        The dictionary describing all the observations of a star as defined in 
+        The dictionary describing all the observations of a star as defined in
         create_observation_dict
     n_pg_main: int
         Radial order of the fixed main mode.
@@ -1579,11 +1579,11 @@ def plot_model_and_observed_frequencies(model, observation, n_pg_main, title="",
         Whether to save the figure
         Defaults to False
     save_dir: string
-        Path to the directory where the figure is to be saved. Only relevant if 
+        Path to the directory where the figure is to be saved. Only relevant if
         save is True
         Defaults to "plots/"
     save_name: string
-        The filename to use when saving the figure. Only relevant if save is 
+        The filename to use when saving the figure. Only relevant if save is
         True. The observations "name" is appended as a prefix and
         the "save_suffix" as a suffix, alongside ".png".
         Defaults to "comparing_frequencies"
@@ -1593,13 +1593,13 @@ def plot_model_and_observed_frequencies(model, observation, n_pg_main, title="",
 
     ------- Returns -------
     fig: matplotlib.figure.Figure
-        Figure object as the top level container of all the plot elements drawn 
+        Figure object as the top level container of all the plot elements drawn
         in this function
     ax1: matplotlib.axes.Axes
-        Axes object encapsulating the elements of this plot using the left 
+        Axes object encapsulating the elements of this plot using the left
         y-axis holding the square root of the amplitude
     ax2: matplotlib.axes.Axes
-        Axes object encapsulating the elements of this plot using the right 
+        Axes object encapsulating the elements of this plot using the right
         y-axis holding the radial order
     """
 
@@ -1608,7 +1608,7 @@ def plot_model_and_observed_frequencies(model, observation, n_pg_main, title="",
     # Linestyles based on mode degree
     linestyles = {0:"dashed", 1:"dotted", 2:"dashdot"}
     # Colour based on radial order
-    colours = {-3:'navy', -2:'blue', -1:'dodgerblue', 0:"purple", 1:'violet', 
+    colours = {-3:'navy', -2:'blue', -1:'dodgerblue', 0:"purple", 1:'violet',
                2:'salmon', 3:'red', 4:'red', 5:'red'} # per radial order
     connect_colour_predicted = "yellowgreen"
     connect_colour_observed = "olive"
@@ -1617,11 +1617,11 @@ def plot_model_and_observed_frequencies(model, observation, n_pg_main, title="",
     ax2 = ax1.twinx() # To have a second y-axis for n_pg
 
     # All signals
-    ax1.vlines(observation["all_freqs"], np.zeros(len(observation["all_amps"])), 
+    ax1.vlines(observation["all_freqs"], np.zeros(len(observation["all_amps"])),
                np.sqrt(observation["all_amps"]),
                color="grey", alpha=0.8, ls="solid", lw=2, zorder=0)
     # Highlighting the modelled frequencies
-    ax1.vlines(observation["freqs"], np.zeros(len(observation["amps"])), 
+    ax1.vlines(observation["freqs"], np.zeros(len(observation["amps"])),
                np.sqrt(observation["amps"]),
                color="black", alpha=0.8, ls="solid", lw=3, zorder=1)
     for i in range(observation["N_m"]) :
@@ -1633,11 +1633,11 @@ def plot_model_and_observed_frequencies(model, observation, n_pg_main, title="",
         amp_m0 = observation["amps"][i]
         l = observation["ls"][i]
         ax1.scatter(freq_m0, np.sqrt(amp_m0),
-                    marker=markers[observation["ls"][i]], color=c, s=30, 
+                    marker=markers[observation["ls"][i]], color=c, s=30,
                     zorder=4)
         freqs, amps = [], []
         m = -l
-        for split, amp_split in zip(observation["splittings"][i], 
+        for split, amp_split in zip(observation["splittings"][i],
                                     observation["amps_splittings"][i]) :
             if m == 0 :
                 freqs.append(freq_m0)
@@ -1653,7 +1653,7 @@ def plot_model_and_observed_frequencies(model, observation, n_pg_main, title="",
             amps.append(amp_split)
             m += 1
         ax1.scatter(freqs, np.sqrt(amps),
-                    marker=markers[observation["ls"][i]], color=c, s=30, 
+                    marker=markers[observation["ls"][i]], color=c, s=30,
                     zorder=4)
         # Highlighting the observed frequencies
         ax1.vlines(freqs, np.zeros(len(freqs)), np.sqrt(amps),
@@ -1665,11 +1665,11 @@ def plot_model_and_observed_frequencies(model, observation, n_pg_main, title="",
         for n_pg in np.unique(model["n_pgs"]) :
             freqs = model["freqs"][(model["ls"] == l) & (model["n_pgs"] == n_pg)]
             for freq in freqs :
-                ax1.axvline(freq, linestyle=linestyles[l], color=colours[n_pg], 
+                ax1.axvline(freq, linestyle=linestyles[l], color=colours[n_pg],
                             alpha=0.6, lw=1., zorder=2)
-                ax2.scatter(freq, n_pg, marker=markers[l], color=colours[n_pg], 
+                ax2.scatter(freq, n_pg, marker=markers[l], color=colours[n_pg],
                             s=25, zorder=3)
-            ax2.plot(freqs, [n_pg]*len(freqs), color=connect_colour_predicted, 
+            ax2.plot(freqs, [n_pg]*len(freqs), color=connect_colour_predicted,
                      zorder=4)
 
     freqs = np.array(observation["all_freqs"])
@@ -1703,4 +1703,3 @@ def plot_model_and_observed_frequencies(model, observation, n_pg_main, title="",
         plt.close()
 
     return fig, ax1, ax2
-

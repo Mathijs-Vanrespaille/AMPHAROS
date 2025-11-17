@@ -3,7 +3,7 @@ import glob
 import h5py
 import os
 
-import support_functions as sf
+from .support_functions import read_model_number_and_Xc_save
 
 
 ##### INPUT ##################################################################################################
@@ -11,30 +11,30 @@ import support_functions as sf
 
 def create_observation_dict(row, sort_by_l, sort_by_freq) :
     """
-    Read in the .tsv file containing all relevant observations and summarise 
+    Read in the .tsv file containing all relevant observations and summarise
     each set of observations in a dictionary.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     row: pandas.core.series.Series
-        Row of the pandas DataFrame containing all observational info of every 
+        Row of the pandas DataFrame containing all observational info of every
         run
     sort_by_l: bool
         Whether to sort the read multiplets by their degree
     sort_by_freq: bool
-        Whether to sort the read multiplets by the frequency of their zonal mode 
+        Whether to sort the read multiplets by the frequency of their zonal mode
         from largest to smallest
 
     ------- Returns -------
     observation: dicts
-        dictionary summarising all the observational info required for the 
+        dictionary summarising all the observational info required for the
         forward modelling. Contains:
         "name": str
             an identifying name of the star
         "suffix": str
             a suffix to be added on the end of output files and plots of this .
-            Useful when modelling the same star (i.e. the same name) with 
+            Useful when modelling the same star (i.e. the same name) with
             different input. Can be empty.
         "log_Teff": float
             Base 10 logarithm of the observed effective temperature
@@ -52,20 +52,20 @@ def create_observation_dict(row, sort_by_l, sort_by_freq) :
             Observed zonal frequencies of the identified modes in cycles per day
             Length of this list equals N_m
         "freqs_err": list of floats
-            Uncertainty on the observed frequencies of the identified modes in 
+            Uncertainty on the observed frequencies of the identified modes in
             cycles per day
             Length of this list equals N_m
         "splittings": list of list of floats
-            The observed rotational splitting of the identified multiplets in 
-            cycles per day. np.nan if no splitting is given, i.e. if the 
-            multiplet is incomplete. 
-            Length of the first list equals N_m, length of the second depends on 
+            The observed rotational splitting of the identified multiplets in
+            cycles per day. np.nan if no splitting is given, i.e. if the
+            multiplet is incomplete.
+            Length of the first list equals N_m, length of the second depends on
             the degree as 2*l
         "splittings_err": list of list of floats
             Uncertainty on the observed rotational splitting in cycles per day
-            np.nan if no splitting is given, i.e. if the multiplet is 
+            np.nan if no splitting is given, i.e. if the multiplet is
             incomplete.
-            Length of the first list equals N_m, length of the second depends on 
+            Length of the first list equals N_m, length of the second depends on
             the degree as 2*l
         "amps": list of floats
             Amplitudes of the identified zonal modes. Only used in visualisation
@@ -74,11 +74,11 @@ def create_observation_dict(row, sort_by_l, sort_by_freq) :
             Identified degrees of the identified zonal modes.
             Length of this list equals N_m
         "n_pgs": list of ints
-            If available, the radial orders of the identified modes. np.nan if 
+            If available, the radial orders of the identified modes. np.nan if
             the radial order is not known a priori
             Length of this list equals N_m
         "all_freqs": list of floats
-            Frequencies in cycles per day of all detected signals, not only the 
+            Frequencies in cycles per day of all detected signals, not only the
             identified signals.
         "all_amps": list of floats
             Amplitudes of all detected signals, not only the identified signals.
@@ -89,10 +89,10 @@ def create_observation_dict(row, sort_by_l, sort_by_freq) :
                  "log_Teff":row["log_Teff"], "log_Teff_err":row["log_Teff_err"],
                  "log_L":row["log_L"], "log_L_err":row["log_L_err"],
                  "N_m":int(row["Ni_ID"]), "N_f":int(row["Nm_ID"]),
-                 "freqs":[], "freqs_err":[], 
-                 "splittings":[], "splittings_err":[], 
+                 "freqs":[], "freqs_err":[],
+                 "splittings":[], "splittings_err":[],
                  "amps":[], "amps_splittings":[], "ls":[], "n_pgs":[],
-                 "all_freqs":list(row["all_f"]), "all_amps":list(row["all_a"]), 
+                 "all_freqs":list(row["all_f"]), "all_amps":list(row["all_a"]),
                  "n_pg_main":row["n_pg_main"]}
     # First collect all freqs, l and i and check the zonal modes
     # i_multiplet indicates to which multiplet a frequency belongs
@@ -145,7 +145,7 @@ def create_observation_dict(row, sort_by_l, sort_by_freq) :
         observation["amps_splittings"].append(amps_splitting)
 
     if sort_by_freq :
-        # Now sort freqs, splittings and their errors by zonal frequency from 
+        # Now sort freqs, splittings and their errors by zonal frequency from
         # largest to smallest!
         I_toSort = np.argsort(-np.array(observation["freqs"]))
         observation["ls"] = [observation["ls"][i] for i in I_toSort]
@@ -158,7 +158,7 @@ def create_observation_dict(row, sort_by_l, sort_by_freq) :
         observation["amps"] = [observation["amps"][i] for i in I_toSort]
 
     if sort_by_l :
-        # Now sort freqs, splittings and their errors by l such that a radial 
+        # Now sort freqs, splittings and their errors by l such that a radial
         # mode always comes first!
         I_toSort = np.argsort(observation["ls"])
         observation["ls"] = [observation["ls"][i] for i in I_toSort]
@@ -173,7 +173,7 @@ def create_observation_dict(row, sort_by_l, sort_by_freq) :
     return observation
 
 
-def read_MESA_history_column(history_file, column_name, dtype=float, 
+def read_MESA_history_column(history_file, column_name, dtype=float,
                              Xc_min=None, Xc_max=None, flip=False) :
     """
     Read the given column from the given MESA history file
@@ -189,35 +189,35 @@ def read_MESA_history_column(history_file, column_name, dtype=float,
         Data type of the column to load in
         Defaults to float
     Xc_min: float
-        The smallest central hydrogen fraction to consider. MESA history output 
-        and StORM summaries at a central hydrogen fraction smaller than this 
-        limit are not read in. If None, no filtering based on the lower limit of 
+        The smallest central hydrogen fraction to consider. MESA history output
+        and StORM summaries at a central hydrogen fraction smaller than this
+        limit are not read in. If None, no filtering based on the lower limit of
         the central hydrogen fraction is done
         Defaults to None
     Xc_max: float
-        The largest central hydrogen fraction to consider. MESA history output 
-        and StORM summaries at a central hydrogen fraction greater than this 
-        limit are not read in. If None, no filtering based on the upper limit of 
+        The largest central hydrogen fraction to consider. MESA history output
+        and StORM summaries at a central hydrogen fraction greater than this
+        limit are not read in. If None, no filtering based on the upper limit of
         the central hydrogen fraction is done
         Defaults to None
     flip: bool
-        Whether to flip the history column. If True, order from ZAMS to TAMS or 
-        with increasing age. If False, order from TAMS to ZAMS or with 
-        increasing Xc. 
+        Whether to flip the history column. If True, order from ZAMS to TAMS or
+        with increasing age. If False, order from TAMS to ZAMS or with
+        increasing Xc.
         Defaults to False
 
     ------- Returns -------
     column: numpy.array of given dtypes
-        The selected history column, for those rows with Xc between Xc_min and 
+        The selected history column, for those rows with Xc between Xc_min and
         Xc_max from small to large Xc
     """
     history_header = np.loadtxt(history_file, skiprows=5, max_rows=1, dtype=str)
-    column = np.loadtxt(history_file, skiprows=6, 
-                        usecols=np.where(history_header==column_name)[0], 
+    column = np.loadtxt(history_file, skiprows=6,
+                        usecols=np.where(history_header==column_name)[0],
                         dtype=dtype)
     if (Xc_min is not None) or (Xc_max is not None) :
-        Xc = np.loadtxt(history_file, skiprows=6, 
-                        usecols=np.where(history_header=="center_h1")[0], 
+        Xc = np.loadtxt(history_file, skiprows=6,
+                        usecols=np.where(history_header=="center_h1")[0],
                         dtype=dtype)
         if Xc_min is not None :
             I_toKeep = [Xc > Xc_min][0]
@@ -227,7 +227,7 @@ def read_MESA_history_column(history_file, column_name, dtype=float,
             I_toKeep = [Xc < Xc_max][0]
             column = column[I_toKeep]
             Xc = Xc[I_toKeep]
-    # If requested, flipping orders such that it is ordered from smallest to 
+    # If requested, flipping orders such that it is ordered from smallest to
     # largest Xc
     if flip :
         return np.flip(column)
@@ -235,7 +235,7 @@ def read_MESA_history_column(history_file, column_name, dtype=float,
         return column
 
 
-def read_MESA_history_columns(history_file, column_names, Xc_min=None, 
+def read_MESA_history_columns(history_file, column_names, Xc_min=None,
                               Xc_max=None, flip=False) :
     """
     Read the given column from the given MESA history file
@@ -248,49 +248,49 @@ def read_MESA_history_columns(history_file, column_names, Xc_min=None,
     column_names: list of strings
         Names of the column in the history columns header
     Xc_min: float
-        The smallest central hydrogen fraction to consider. MESA history output 
-        and StORM summaries at a central hydrogen fraction smaller than this 
-        limit are not read in. If None, no filtering based on the lower limit of 
+        The smallest central hydrogen fraction to consider. MESA history output
+        and StORM summaries at a central hydrogen fraction smaller than this
+        limit are not read in. If None, no filtering based on the lower limit of
         the central hydrogen fraction is done
         Defaults to None
     Xc_max: float
-        The largest central hydrogen fraction to consider. MESA history output 
-        and StORM summaries at a central hydrogen fraction greater than this 
-        limit are not read in. If None, no filtering based on the upper limit of 
+        The largest central hydrogen fraction to consider. MESA history output
+        and StORM summaries at a central hydrogen fraction greater than this
+        limit are not read in. If None, no filtering based on the upper limit of
         the central hydrogen fraction is done
         Defaults to None
     flip: bool
-        Whether to flip the history column. If True, order from ZAMS to TAMS or 
-        with increasing age. If False, order from TAMS to ZAMS or with 
-        increasing Xc. 
+        Whether to flip the history column. If True, order from ZAMS to TAMS or
+        with increasing age. If False, order from TAMS to ZAMS or with
+        increasing Xc.
         Defaults to False
 
     ------- Returns -------
     column: numpy.array of given dtypes
-        The selected history column, for those rows with Xc between Xc_min and 
+        The selected history column, for those rows with Xc between Xc_min and
         Xc_max from small to large Xc
     """
     history_header = np.loadtxt(history_file, skiprows=5, max_rows=1, dtype=str)
     usecols = [np.where(history_header==column_name)[0][0] for column_name in column_names]
     if (Xc_min is not None) or (Xc_max is not None) :
-        Xcs = np.flip(np.loadtxt(history_file, skiprows=6, 
-                                 usecols=np.where(history_header=="center_h1")[0], 
+        Xcs = np.flip(np.loadtxt(history_file, skiprows=6,
+                                 usecols=np.where(history_header=="center_h1")[0],
                                  dtype=np.float32))
         if Xc_min is None :
             Xc_min = np.min(Xcs)
         if Xc_max is None :
             Xc_max = np.max(Xcs)
         imin, imax = np.searchsorted(Xcs, (Xc_min, Xc_max))
-        # Bear in mind that the Xcs are flipped, so imax takes the role of where 
+        # Bear in mind that the Xcs are flipped, so imax takes the role of where
         # to start reading the file and imin defines the endpoint!
-        columns = np.loadtxt(history_file, skiprows=max(5+len(Xcs)-imax, 6), 
-                             max_rows=len(Xcs)-imin+1, usecols=usecols, 
+        columns = np.loadtxt(history_file, skiprows=max(5+len(Xcs)-imax, 6),
+                             max_rows=len(Xcs)-imin+1, usecols=usecols,
                              unpack=True)
     else :
-        columns = np.loadtxt(history_file, skiprows=6, usecols=usecols, 
+        columns = np.loadtxt(history_file, skiprows=6, usecols=usecols,
                              unpack=True)
 
-    # If requested, flipping orders such that it is ordered from smallest to 
+    # If requested, flipping orders such that it is ordered from smallest to
     # largest Xc
     if flip :
         return np.flip(columns, axis=1)
@@ -300,21 +300,21 @@ def read_MESA_history_columns(history_file, column_names, Xc_min=None,
 
 def read_model_parameters(parameter_file, header=True, delimiter=",") :
     """
-    Read the file describing the parameters used in all the MESA models, 
-    specifically the initial metallicities Z, initial masses M, overshooting 
-    parameters fov and logarithm of the mixing strength at the base of the 
-    envelope logD. The rotation rates are read in elsewhere from the StORM 
+    Read the file describing the parameters used in all the MESA models,
+    specifically the initial metallicities Z, initial masses M, overshooting
+    parameters fov and logarithm of the mixing strength at the base of the
+    envelope logD. The rotation rates are read in elsewhere from the StORM
     summaries. Note that the parameter grid need not be rectangular.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     parameter_file: string
-        Path to the .csv file containing all the grid parameters. This file is 
-        assumed to have a header like the one in the provided example input 
+        Path to the .csv file containing all the grid parameters. This file is
+        assumed to have a header like the one in the provided example input
         files.
     header: bool
-        Whether this file has a header. If not, the order of the parameters is 
+        Whether this file has a header. If not, the order of the parameters is
         assumed to be Z, M, logD, fov.
         Defaults to True
     delimiter: string
@@ -327,17 +327,17 @@ def read_model_parameters(parameter_file, header=True, delimiter=",") :
     Ms: numpy.array of floats
         Initial mass in solar masses of each MESA-GYRE run
     logDs: numpy.array of floats
-        Base 10 logarithm of the mixing strength at the base of the radiative 
+        Base 10 logarithm of the mixing strength at the base of the radiative
         envelope of each MESA-GYRE run
     fovs: numpy.array of floats
         Overshooting parameter of each MESA-GYRE run
-    Each of these arrays is off the same length, namely the number of lines in 
+    Each of these arrays is off the same length, namely the number of lines in
     the parameter file (minus header)
     """
     if header:
-        header = np.loadtxt(parameter_file, max_rows=1, dtype=str, 
+        header = np.loadtxt(parameter_file, max_rows=1, dtype=str,
                             delimiter=delimiter)
-        parameters = np.loadtxt(parameter_file, skiprows=1, dtype=float, 
+        parameters = np.loadtxt(parameter_file, skiprows=1, dtype=float,
                                 unpack=True, delimiter=delimiter)
         try :
             Zs = parameters[(header == "Z") | (header == "Zini")][0]
@@ -367,51 +367,51 @@ def read_model_parameters(parameter_file, header=True, delimiter=",") :
                            "'logD', 'log_D', 'logDmix', 'log_Dmix' or " \
                            "'log_D_mix' as expected.")
     else :
-        Zs, Ms, logDs, fovs = np.loadtxt(parameter_file, unpack=True, 
+        Zs, Ms, logDs, fovs = np.loadtxt(parameter_file, unpack=True,
                                          delimiter=delimiter)
     return Zs, Ms, logDs, fovs
 
 
-def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[], 
-                      Xc_min=None, Xc_max=None, 
+def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
+                      Xc_min=None, Xc_max=None,
                       ls=[0,0,0,1,1,1,1,1,1,1,2,2,2,2,2,2,2],
-                      n_pgs=[1,2,3,-3,-2,-1,0,1,2,3,-3,-2,-1,0,1,2,3], 
+                      n_pgs=[1,2,3,-3,-2,-1,0,1,2,3,-3,-2,-1,0,1,2,3],
                       add_beta=False) :
     """
-    Read in and summarise all the STORM output of a MESA run with the given 
-    parameters. This collects the predicted frequencies of the given 
-    combinations of degree l and radial order n_pgs at every output step. All 
+    Read in and summarise all the STORM output of a MESA run with the given
+    parameters. This collects the predicted frequencies of the given
+    combinations of degree l and radial order n_pgs at every output step. All
     output is collected into a dictionary, described below.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
     MESA_output_dir: string
-        The full or relative path to the top folder containing all the output of 
+        The full or relative path to the top folder containing all the output of
         MESA and StORM.
     Z: float
         The initial metallicity of the MESA run to be read in.
     M: float
         The initial mass of the MESA run to be read in.
     logD: float
-        The mixing strength at the base of the envelope of the MESA run to be 
+        The mixing strength at the base of the envelope of the MESA run to be
         read in.
     fov: float
         The overshooting parameter of the MESA run to be read in.
     frots_rel_to_include: list of floats
-        The rotation rates relative to the Keplerian critical rotation rate to 
-        be included. If left empty, all the rotation rates provided in the StORM 
+        The rotation rates relative to the Keplerian critical rotation rate to
+        be included. If left empty, all the rotation rates provided in the StORM
         summaries are used.
         Defaults to []
     Xc_min: float
-        The smallest central hydrogen fraction to consider. MESA history output 
-        and StORM summaries at a central hydrogen fraction smaller than this 
-        limit are not read in. If None, no filtering based on the lower limit of 
+        The smallest central hydrogen fraction to consider. MESA history output
+        and StORM summaries at a central hydrogen fraction smaller than this
+        limit are not read in. If None, no filtering based on the lower limit of
         the central hydrogen fraction is done
         Defaults to None
     Xc_max: float
-        The largest central hydrogen fraction to consider. MESA history output 
-        and StORM summaries at a central hydrogen fraction greater than this 
+        The largest central hydrogen fraction to consider. MESA history output
+        and StORM summaries at a central hydrogen fraction greater than this
         limit are not read in. If None, no filtering based on the upper limit of
         the central hydrogen fraction is done
         Defaults to None
@@ -419,11 +419,11 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
         Degrees of the predicted modes to be read in
         Must be the same length as n_pgs
     n_pgs: list of ints
-        Radial orders, within the Eckart-Scuflaire-Osaki-Takata scheme, of the 
+        Radial orders, within the Eckart-Scuflaire-Osaki-Takata scheme, of the
         predicted modes to be read in
         Must be the same length as ls
-    add_beta: bool 
-        Whether to include the beta_nl constant from GYRE for each multiplet in 
+    add_beta: bool
+        Whether to include the beta_nl constant from GYRE for each multiplet in
         the model
         Setting this to True increases loading time considerably
         Defaults to False
@@ -439,10 +439,10 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
             The central hydrogen fractions around which MESA saved models
             array length equals M
         "Xc_min": float
-            The minimum allowed central hydrogen fraction. Any MESA-StORM output 
+            The minimum allowed central hydrogen fraction. Any MESA-StORM output
             below this limit is ignored
         "Xc_max": float
-            The maximum allowed central hydrogen fraction. Any MESA-StORM output 
+            The maximum allowed central hydrogen fraction. Any MESA-StORM output
             above this limit is ignored
         "mns": numpy.array of ints
             Model numbers at which MESA saved
@@ -451,7 +451,7 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
             the rotation rates in cycles per day
             array length equals F
         "frots_rel": numpy.array of floats
-            the rotation rates in relative fraction of the Keplerian critical 
+            the rotation rates in relative fraction of the Keplerian critical
             rotation rate
             array length equals F
         "ls": numpy.array of ints
@@ -464,18 +464,18 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
             Radial orders of the modes
             array length equals K
         "freqs": numpy.array of numpy.arrays of numpy.array of floats
-            Contains an array for each mode identity (l,m,n_pgs), rotation rate, 
+            Contains an array for each mode identity (l,m,n_pgs), rotation rate,
             and output step.
             array dimensions equals K x F x M
         "track_reliable": numpy.array of numpy.arrays of bools
-            Whether the summarising algorithm did not detect any discrepancies 
+            Whether the summarising algorithm did not detect any discrepancies
             with this each track
             array dimensions equals K x M
         "f_Ks": numpy.array of floats
             The Keplerian critical rotation rate of each model in cycles per day
             array length equals M
         "MESA_model_dir": string
-            Path to the directory containing the output of this particular MESA 
+            Path to the directory containing the output of this particular MESA
             run
         "histfile": string
             Path to the history file of this MESA model
@@ -483,7 +483,7 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
             The beta_nl of each mode
             Only included if add_beta is True
 
-    with K the number of mode identities read in and M the number of output 
+    with K the number of mode identities read in and M the number of output
     steps of the model and F the number of considered rotation rates.
     Each array over time (those of length M) is sorted by Xc
 
@@ -504,15 +504,15 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
     folder = "Z{Z:.3f}_M{M:.2f}_logD{logD:.1f}_fov{fov:.3f}".format(Z=Z,M=M,logD=logD,fov=fov)
     MESA_model_dir = "{MESA_output_dir}/{folder}/".format(MESA_output_dir=MESA_output_dir,folder=folder)
     history_file = "{MESA_model_dir}/{folder}.hist".format(MESA_model_dir=MESA_model_dir,folder=folder)
-    mn_history, Xc_history, age_history = read_MESA_history_columns(history_file, 
-                                                                    ["model_number", "center_h1", "star_age"], 
-                                                                    Xc_min=None, 
+    mn_history, Xc_history, age_history = read_MESA_history_columns(history_file,
+                                                                    ["model_number", "center_h1", "star_age"],
+                                                                    Xc_min=None,
                                                                     Xc_max=None)
 
     storm_summary_paths = glob.glob("{MESA_model_dir}/storm_summaries/*.hdf5".format(MESA_model_dir=MESA_model_dir))
 
     all_tracks = {"ages":[], "Xcs":[], "Xc_saves":[], "mns":[],
-                  "Xc_min":Xc_min, "Xc_max":Xc_max, 
+                  "Xc_min":Xc_min, "Xc_max":Xc_max,
                   "MESA_model_dir":MESA_model_dir,
                   "histfile":history_file,
                   "ms":np.array(ms_track),
@@ -534,12 +534,12 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
 
     for storm_summary_path in storm_summary_paths :
         # Get the model number and central hydrogen fraction at which MESA was meant to save
-        mn, Xc_save = sf.read_model_number_and_Xc_save(storm_summary_path) 
+        mn, Xc_save = read_model_number_and_Xc_save(storm_summary_path)
         # The real central hydrogen fraction of this MESA model
-        Xc = Xc_history[np.where(mn_history == mn)[0]][0] 
+        Xc = Xc_history[np.where(mn_history == mn)[0]][0]
         # The age of this MESA model
-        age = age_history[np.where(mn_history == mn)[0]][0] 
-        # Ignore entries that lie outside the requested range of central 
+        age = age_history[np.where(mn_history == mn)[0]][0]
+        # Ignore entries that lie outside the requested range of central
         # hydrogen fraction. Note that entries equal to the limits are allowed
         if (Xc_min is not None and Xc < Xc_min) or \
             (Xc_max is not None and Xc > Xc_max) :
@@ -555,7 +555,7 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
             frots_rel = np.array(storm_summary["frots_rel"])
             if not len(frots_rel_to_include) == 0 :
                 # Get indices that are in the frots_rel_to_include
-                I = [frot in frots_rel_to_include for frot in frots_rel] 
+                I = [frot in frots_rel_to_include for frot in frots_rel]
             else :
                 I = [True]*len(frots_rel) # Get all the indices
             for k, (l, m, n_pg) in enumerate(zip(ls_track, ms_track, n_pgs_track)) :
@@ -627,42 +627,42 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
 ##### OUTPUT ###################################################################
 
 
-def write_model(model, save_name, save_dir, 
-                attrs=["n_pg_main", "age", "Xc", "frot_best", "Xc_min", 
-                       "Xc_max", "log_Teff", "log_L", "MESA_model_dir", 
+def write_model(model, save_name, save_dir,
+                attrs=["n_pg_main", "age", "Xc", "frot_best", "Xc_min",
+                       "Xc_max", "log_Teff", "log_L", "MESA_model_dir",
                        "histfile"],
                 dsets=["ls", "ms", "n_pgs", "freqs"]) :
     """
-    Write a .hdf file of the given model with the given name in the given 
-    location. 
+    Write a .hdf file of the given model with the given name in the given
+    location.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
 
     model: dict
-        The dictionary describing the particular model as created by 
+        The dictionary describing the particular model as created by
         interpolate_track_to_model
     save_name: string
         Name of the file to write. Will be appended with .hdf
-        Note: Overwrites a file with the same 
+        Note: Overwrites a file with the same
     save_dir: string
-        Path to the directory where to write the file. Directory will be created 
+        Path to the directory where to write the file. Directory will be created
         if it does not exist yet.
     attrs: list of string
-        The keys in the model dictionary to be writen out as attributes. Each 
+        The keys in the model dictionary to be writen out as attributes. Each
         key must be in model and contain a single value.
-        Defaults to ["n_pg_main", "age", "Xc", "frot_best", "Xc_min", "Xc_max", 
+        Defaults to ["n_pg_main", "age", "Xc", "frot_best", "Xc_min", "Xc_max",
                      "log_Teff", "log_L", "MESA_model_dir", "histifle"]
     dsets: list of string
-        The keys in the model dictionary to be writen out as datasets. Each key 
+        The keys in the model dictionary to be writen out as datasets. Each key
         must be in model and contain a list of value.
         Defaults to ["ls", "ms", "n_pgs", "freqs"]
     """
     if (type(model) == float) :
         print("write_model :  provided model is a NaN!")
         return
-    
+
     if not os.path.isdir(save_dir) :
         print("Making new directory to write_model: ", save_dir)
         os.makedirs(save_dir, exist_ok=True)
@@ -676,8 +676,8 @@ def write_model(model, save_name, save_dir,
 
 def write_results(grid, observation, results, statistical_model, save_dir) :
     """
-    Write all the output. For further details of what is included in these 
-    files, examine the accompanying examples or the three functions 
+    Write all the output. For further details of what is included in these
+    files, examine the accompanying examples or the three functions
     write_statistical_model, write_results_summary, and write_model
 
     Author: Mathijs Vanrespaille
@@ -685,56 +685,56 @@ def write_results(grid, observation, results, statistical_model, save_dir) :
     ------- Parameters -------
 
     grid: dict
-        The dictionary summarising all the relevant MESA-StORM(-GYRE) grid 
+        The dictionary summarising all the relevant MESA-StORM(-GYRE) grid
         output as created by initialise_grid
     observation: dict
-        The dictionary describing all the observations of a star as defined in 
-        create_observation_dict  
+        The dictionary describing all the observations of a star as defined in
+        create_observation_dict
     results: dict
-        The dictionary containing all the results to be written out. 
-        Expected to contain at least "Xcs_cross", "ages_cross", "frots_best", 
+        The dictionary containing all the results to be written out.
+        Expected to contain at least "Xcs_cross", "ages_cross", "frots_best",
         "chi2s", "log_Rs", "log_gs", "log_Rs" and "log_Rs"
     statistical_model: dict
-        The exp(-chi^2/2) averaged model of all optimal models within the 
+        The exp(-chi^2/2) averaged model of all optimal models within the
         2-sigma error ellipse on the HRD as created by make_statistical_model
     save_dir: string
         Path to the directory where to write the file
     """
     if not os.path.isdir(save_dir) :
         os.makedirs(save_dir, exist_ok=True)
-    write_statistical_model(statistical_model, 
-                            f"{observation['name']}_statisticalModel_{observation['save_suffix']}", 
+    write_statistical_model(statistical_model,
+                            f"{observation['name']}_statisticalModel_{observation['save_suffix']}",
                             save_dir)
-    write_results_summary(grid, results, 
-                          f"{observation['name']}_resultsSummarised_{observation['save_suffix']}", 
+    write_results_summary(grid, results,
+                          f"{observation['name']}_resultsSummarised_{observation['save_suffix']}",
                           save_dir)
-    write_model(results["best_model"], 
-                f"{observation['name']}_bestModel_{observation['save_suffix']}", 
+    write_model(results["best_model"],
+                f"{observation['name']}_bestModel_{observation['save_suffix']}",
                 save_dir)
     return
 
 
-def write_results_summary(grid, results, save_name, save_dir, 
+def write_results_summary(grid, results, save_name, save_dir,
                           exclude_splitting_from_chi2=False) :
     """
-    Write .csv file containing the parameters for each evolutionary track's 
-    optimal model. Users are encouraged to expand these according to their 
-    needs. 
+    Write .csv file containing the parameters for each evolutionary track's
+    optimal model. Users are encouraged to expand these according to their
+    needs.
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
-    
+
     grid: dict
-        The dictionary summarising all the relevant MESA-StORM(-GYRE) grid 
+        The dictionary summarising all the relevant MESA-StORM(-GYRE) grid
         output as created by initialise_grid
     results: dict
-        The dictionary containing all the results to be written out. 
-        Expected to contain at least "Xcs_cross", "ages_cross", "frots_best", 
+        The dictionary containing all the results to be written out.
+        Expected to contain at least "Xcs_cross", "ages_cross", "frots_best",
         "chi2s", "log_Rs", "log_gs", "log_Rs" and "log_Rs"
     save_name: string
         Name of the file to write. Will be appended with .csv
-        Note: Overwrites a file with the same 
+        Note: Overwrites a file with the same
     save_dir: string
         Path to the directory where to write the file
         Note: Make sure this path already exists!
@@ -749,10 +749,10 @@ def write_results_summary(grid, results, save_name, save_dir,
     header = "chi2,chi2_reduced,spectro_compatible,Z,M,logD,fov,Xc,age," \
              "log_age,frot,frot_rel,fK,log_Teff,log_L,R,log_R,log_g,Mcc," \
              "Mcc_over_M,Pi0"
-    arrays = [results["chi2s"], results["chi2s_reduced"], 
-              results["spectro_compatible"], grid["Zs"], grid["Ms"], 
-              grid["logDs"], grid["fovs"], results["Xcs_cross"], 
-              results["ages_cross"], results["frots_best"], results["log_Rs"], 
+    arrays = [results["chi2s"], results["chi2s_reduced"],
+              results["spectro_compatible"], grid["Zs"], grid["Ms"],
+              grid["logDs"], grid["fovs"], results["Xcs_cross"],
+              results["ages_cross"], results["frots_best"], results["log_Rs"],
               results["log_gs"], results["Ms_cc"], results["Pi0s"]]
     if exclude_splitting_from_chi2 :
         header += ",chi2_withSplitting,chi2_withSplitting_reduced"
@@ -771,7 +771,7 @@ def write_results_summary(grid, results, save_name, save_dir,
             new_line += f",{results['chi2_withSplitting'][i]}," \
                         f"{results['chi2_withSplitting_reduced'][i]}"
         all_lines.append(f"\n{new_line}")
-    
+
     if not os.path.isdir(save_dir) :
         print("Making new directory to write results summary: ", save_dir)
         os.makedirs(save_dir, exist_ok=True)
@@ -783,20 +783,20 @@ def write_results_summary(grid, results, save_name, save_dir,
 
 def write_statistical_model(statistical_model, save_name, save_dir) :
     """
-    Write .csv file of all the information in the given statistical model. This 
-    simply writes out all the values in the statistcal model dictinoary under 
-    columns named per the keys 
+    Write .csv file of all the information in the given statistical model. This
+    simply writes out all the values in the statistcal model dictinoary under
+    columns named per the keys
 
     Author: Mathijs Vanrespaille
 
     ------- Parameters -------
-    
-    statistical_model: 
-        The exp(-chi^2/2) averaged model of all optimal models within the 
+
+    statistical_model:
+        The exp(-chi^2/2) averaged model of all optimal models within the
         2-sigma error ellipse on the HRD as created by make_statistical_model
     save_name: string
         Name of the file to write. Will be appended with .csv
-        Note: Overwrites a file with the same 
+        Note: Overwrites a file with the same
     save_dir: string
         Path to the directory where to write the file
         Note: Make sure this path already exists!
@@ -808,7 +808,7 @@ def write_statistical_model(statistical_model, save_name, save_dir) :
             all_lines.append(f'{key},"{statistical_model[key]}"\n')
         else :
             all_lines.append(f"{key},{statistical_model[key]}\n")
-    
+
     if not os.path.isdir(save_dir) :
         print("Making new directory to write statistical model: ", save_dir)
         os.makedirs(save_dir, exist_ok=True)
@@ -816,4 +816,3 @@ def write_statistical_model(statistical_model, save_name, save_dir) :
     f = open(f"{save_dir}/{save_name}.csv", "w")
     f.writelines(all_lines)
     f.close()
-
