@@ -2,7 +2,6 @@ LICENSE
 README.md
 setup.py
 ampharos/__init__.py
-ampharos/asteroseismic.py
 ampharos/identify_storm_output.py
 ampharos/io_functions.py
 ampharos/main_functions.py

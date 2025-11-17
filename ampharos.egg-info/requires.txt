@@ -2,3 +2,6 @@ matplotlib
 h5py
 numpy
 scipy
+
+[first_order_rotation_treatment]
+pygyre

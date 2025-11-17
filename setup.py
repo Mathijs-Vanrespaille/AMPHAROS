@@ -4,12 +4,15 @@ with open("README.md", "r") as fh:
     description = fh.read()
 
 setuptools.setup(
-    name="",
+    name="ampharos",
     version="0.0.1",
     author="Mathijs Vanrespaille",
     author_email="mathijs.vanrespaille@kuleuven.be",
     packages=["ampharos"],
-    description="Asteroseismic forward modelling of beta Cephei pulsators",
+    include=["ampharos/__init__.py", "ampharos/instability_strips/", "ampharos/io_functions.py", "ampharos/main_functions.py", "ampharos/support_functions.py", "ampharos/visualisation.py"],
+    exclude=["ampharos/identify_storm_output.py"],
+#    description="Asteroseismic forward modelling of beta Cephei pulsators",
+    description="Asteroseismic Modelling of Hot Pulsators Accounting for Rotation using Oscillation code StORM",
     long_description=description,
     long_description_content_type="text/markdown",
     url="https://github.com/Mathijs-Vanrespaille/AMPHAROS.git",

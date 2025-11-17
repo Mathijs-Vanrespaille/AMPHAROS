@@ -1,7 +1,7 @@
 Metadata-Version: 2.4
 Name: ampharos
 Version: 0.0.1
-Summary: Asteroseismic forward modelling of beta Cephei pulsators
+Summary: Asteroseismic Modelling of Hot Pulsators Accounting for Rotation using Oscillation code StORM
 Home-page: https://github.com/Mathijs-Vanrespaille/AMPHAROS.git
 Author: Mathijs Vanrespaille
 Author-email: mathijs.vanrespaille@kuleuven.be
@@ -13,6 +13,8 @@ Requires-Dist: matplotlib
 Requires-Dist: h5py
 Requires-Dist: numpy
 Requires-Dist: scipy
+Provides-Extra: first-order-rotation-treatment
+Requires-Dist: pygyre; extra == "first-order-rotation-treatment"
 Dynamic: author
 Dynamic: author-email
 Dynamic: description
@@ -20,6 +22,7 @@ Dynamic: description-content-type
 Dynamic: home-page
 Dynamic: license
 Dynamic: license-file
+Dynamic: provides-extra
 Dynamic: requires-dist
 Dynamic: requires-python
 Dynamic: summary
