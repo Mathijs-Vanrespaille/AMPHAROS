@@ -3,8 +3,8 @@ from .support_functions import initialise_grid, find_age_cross_zonal_mode, \
                                interpolate_models_in_frot_with_StORM, \
                                is_model_compatible_with_spectroscopy, \
                                number_observations, standardised_chi2
-from .io_functions import read_observations, create_observation_dict, \
-                          write_results
+from .io_functions import write_results, create_observation_dict
+
 from .visualisation import *
 
 import pandas as pd
