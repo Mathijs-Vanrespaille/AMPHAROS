@@ -292,8 +292,8 @@ def find_age_cross_and_frot(grid, observation, results, n_pg_main,
                                                   observation["ls"][0],
                                                   frot_rel=0.0)
             model_nonRot = interpolate_track_to_model_in_age(tracks, age_cross,
-                                                            rot_rel=0.0,
-                                                            add_beta=True)
+                                                             frot_rel=0.0,
+                                                             add_beta=True)
             model_best_frot = interpolate_model_in_frot_with_GYRE(observation,
                                                                   model_nonRot)
         results["ages_cross"].append(model_best_frot["age"])

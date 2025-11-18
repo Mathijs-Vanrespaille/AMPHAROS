@@ -160,10 +160,11 @@ In order to use the code, open a Python terminal, Jupyter notebook, or something
 import ampharos as amphy
 ```
 
-Next, you need to load in the observations and the model grid. As this can take a significant amount of time (> 1h when loading in 1505 models), we load in a much smaller subgrid for teaching purposes described in `input/tutorial/grid_test.csv`. The models are stored in `MESA_output_fullGrid/`. To do so, run the following in your Python terminal:
+Next, you need to load in the observations and the model grid. As this can take a significant amount of time (> 1h when loading in 1505 models), we load in a much smaller subgrid for teaching purposes described in `input/tutorial/grid_test.csv`. The models are stored in `/path/to/MESA_output_fullGrid/`, where you will need to replace `/path/to/` with the relevant absolute path. To do so, run the following in your Python terminal:
 
 ```python
-grid, obs_radial = amphy.initialise_all("input/tutorial/obs_test_radial.tsv", "input/tutorial/grid_test.csv", "MESA_output_fullGrid/")
+MESA_top_dir = "/path/to/MESA_output_fullGrid/"
+grid, obs_radial = amphy.initialise_all("input/tutorial/obs_test_radial.tsv", "input/tutorial/grid_test.csv", MESA_top_dir)
 ```
 
 Wait until the subgrid is loaded in, which should take roughly a minute. In the meantime, you should see two stars' telephone numbers printed, followed by the message "Finished reading {k}/27" 27 times. As the radial orders of these stars' modes are not known a priori, we try three different radial orders for the fixed radial mode. Once the grid is loaded in, you can start the analysis using
@@ -172,26 +173,26 @@ Wait until the subgrid is loaded in, which should take roughly a minute. In the 
 amphy.analyse_observations(grid, obs_radial, n_pgs=[1,2,3])
 ```
 
-On the laptop used to test this tutorial, this analysis took roughly two minutes. In the meantime, you should see the names of the two stars being printed to the screen, which can help you understand how far along the code is. It is also likely that some warnings pop up. You can safely ignore these for now, or consult the **common warning messages** section below.
+On the laptop used to test this tutorial, this analysis took roughly two minutes. In the meantime, you should see the names of the two stars being printed to the screen. It is also likely that some warnings pop up. You can safely ignore these for now, or consult the **common warning messages** section below.
 
-Once the analysis is complete, you should see two new subdirectories, `plots/` and `results/` have been created. Take a few minutes to explore these subdirectories. Of particular importance are `plots/HD117704/picking_npg/` and `plots/TIC465541764/picking_npg/`, which contain figures designed to help you figure out what the most likely radial order of the fixed mode is. You need to appraise and manually select the most likely radial order identifications. Try that yourself! Vanrespaille et al. (submitted) identified the most likely radial mode of HD 117704 to be n_pg=1 and that of TIC 465541764 to be n_pg=2. Do you agree?
+Once the analysis is complete, you should see two new subdirectories, `plots/` and `results/` have been created. Take a few minutes to explore these subdirectories. Of particular importance are `plots/HD117704/picking_npg/` and `plots/TIC465541764/picking_npg/`, which contain figures designed to help you figure out what the most likely radial order of the fixed mode is. You need to appraise and manually select the most likely radial order identifications. Try that yourself! Vanrespaille et al. (submitted) identified the most likely radial mode of HD 117704 to be $ n_pg=1 $ and that of TIC 465541764 to be $ n_pg=2 $. Do you agree?
 
 
 ### Modelling stars with a known radial order for the fixed mode
 
-Now that we known the radial orders of the fixed modes of HD 117704 and TIC 465541764, we can tell the code to only analyse them using only those radial orders provided in the "n_pg_main" column in the observation file. To do so, run the following:
+Now that we known the radial orders of the fixed modes of HD 117704 and TIC 465541764, we can tell AMPHAROS to only analyse them using only those radial orders provided in the "n_pg_main" column in the observation file. To do so, run the following:
+
+```python
+amphy.analyse_observations(grid, obs_radial, n_pgs=[])
+```
+
+Herein we left the argument `n_pgs` deliberately empty, which tells AMPHAROS to look for the "n_pg_main" column in the observation file. However, note that the name of HD 117704 is not printed to the screen. That means it has been ignored in the analysis. If you open the file `input/tutorial/obs_test_radial.tsv`, you will see that the column "n_pg_main" is left empty. Consequently, AMPHAROS does not know what radial order to use because we also did not tell it which radial orders to try out. Therefore, it simply skipped this target. To alleviate this, complete the column with the radial order you found above and run the following again:
 
 ```python
 mf.analyse_observations(grid, obs_radial, n_pgs=[])
 ```
 
-Herein we left `n_pgs` deliberately empty, which tells the code to look for the "n_pg_main" column. However, note that the name of HD 117704 is not printed to the screen. That means it has been ignored in the analysis. If you open the file `input/tutorial/obs_test_radial.tsv`, you will see that the column "n_pg_main" is left empty, meaning the code does not know what radial order to use because we also did not tell it which radial orders to try out. Therefore, it simply skipped this target. To alleviate this, complete the column with the radial order you found above and run the following again.
-
-```python
-mf.analyse_observations(grid, obs_radial, n_pgs=[])
-```
-
-Now both names should get printed to the screen. You should take stock of how long this computation took. It should take only roughly a third of the time of the analysis you did when you provided `n_pgs=[1,2,3]`.
+Now both names should get printed to the screen. You should take stock of how long this computation took. It should take only roughly a third of the time of the analysis when you provided `n_pgs=[1,2,3]`.
 
 
 ### Modelling a star without a known radial mode
@@ -199,20 +200,20 @@ Now both names should get printed to the screen. You should take stock of how lo
 Now how does one analyse a star without an identified radial mode to use to fix the age. We first need to read the observation file that star (HD 340239) is in, though we do not need to re-load the grid. To do so, use the following command:
 
 ```python
-obs_nonradial = mf.read_observations("input/tutorial/obs_test_nonRadial.tsv", sort_by_l=False, sort_by_freq=True)
+obs_nonradial = amphy.read_observations("input/tutorial/obs_test_nonRadial.tsv", sort_by_l=False, sort_by_freq=True)
 ```
 
-Let's take a moment to explain what these arguments `sort_by_l` and `sort_by_freq` mean. Internally, the code creates lists of various properties of the zonal modes in the observation files, notably their degree and frequency. The first mode in these lists is used as the fixed mode. By default, it will sort these lists by the degree such that a radial mode, i.e. one with l=0, comes first. This is not helpful when no radial mode is identified. Instead, as explained by Section 4.2 of Vanrespaille et al. (submitted), it is best to use the zonal mode with the highest frequency as the fixed mode. That's why we tell the code not to sort by degree and instead to sort by frequency, which will place the largest frequency first.
+Let's take a moment to explain what these arguments `sort_by_l` and `sort_by_freq` mean. Internally, AMPHAROS creates lists of various properties of the zonal modes in the observation files, notably their degree and frequency. The first mode in these lists is used as the fixed mode. By default, it will sort these lists by the degree such that a radial mode, i.e. one with $ l=0 $, comes first. This is not helpful when no radial mode is identified. Instead, as explained by Section 4.2 of Vanrespaille et al. (submitted), it is best to use the zonal mode with the highest frequency as the fixed mode. That's why we tell AMPHAROS not to sort by degree and instead to sort by frequency, which will place the largest frequency first.
 
-Now that this is loaded in, we can analyse the star, trying out different possibilities for the radial order. However, now we have to also consider that the quintuplet (l=2) we use as the fixed mode of this star might be a g-mode, meaning $n_pg < 0$, or an f-mode, meaning $n_pg=0$. Therefore, analyse this star using
+Now that this is loaded in, we can analyse the star, trying out different possibilities for the radial order. However, now we have to also consider that the quintuplet ($ l=2 $) we use as the fixed mode of this star might be a g-mode, meaning $ n_pg<0 $, or an f-mode, meaning $ n_pg=0 $. Therefore, analyse this star using:
 
 ```python
-mf.analyse_observations(grid, obs_nonradial, n_pgs=[-2,-1,0,1,2,3])
+amphy.analyse_observations(grid, obs_nonradial, n_pgs=[-2,-1,0,1,2,3])
 ```
 
-You should see a couple of warning messages pop up, the meaning of which you can consult below. Look at the results and figures created for this target. For what radial order(s) did the code not create any output? For what radial order(s) does the code generate bizarre and thus unreliable figures (be sure to check the HRD in particular!)?
+You should see a variety of warnings and messages pop up, the meaning of which you can consult below. Look at the results and figures created for this target. For what radial order(s) did the code not create any output? For what radial order(s) does the code generate bizarre and thus unreliable figures (be sure to check the HRD in particular) ?
 
-Vanrespaille et al. (submitted) took this star's most likely radial order for the fixed mode to be $n_pg=0$, meaning it has an f-mode. Do you agree?
+Vanrespaille et al. (submitted) took this star's most likely radial order for the fixed mode to be $ n_pg=0 $, meaning it is due to an f-mode. Do you agree?
 
 
 ### Constraining differential rotation
@@ -222,32 +223,31 @@ As described in Section 7. of Vanrespaille et al. (submitted), differential rota
 Let's analyse these different variations now. Herein, we'll only use the identified radial order of the star provided in the observation file:
 
 ```python
-obs_nonradial_variations = mf.read_observations("input/tutorial/obs_test_nonRadial_withVariations.tsv", sort_by_l=False, sort_by_freq=True)
-
-mf.analyse_observations(grid, obs_nonradial_variations, n_pgs=[])
+obs_nonradial_variations = amphy.read_observations("input/tutorial/obs_test_nonRadial_withVariations.tsv", sort_by_l=False, sort_by_freq=True)
+amphy.analyse_observations(grid, obs_nonradial_variations, n_pgs=[])
 ```
-Once completed, navigate to the star's results folder at `results/HD340239/n_pg_main0/`. You should see three different copies of each file with different suffixes in the name. A similar structure should be seen in the relevant plots folder.
-
+Once completed, navigate to the star's results folder at `results/HD340239/n_pg_main0/`. You should see three different copies of each file with different suffixes in their names. A similar structure should be seen in the relevant plots folder.
 
 
 ## Alternative modelling approaches
 
-As described in Section 5 and Appendix B of Vanrespaille et al. (submitted), the code features some alternative modelling approaches. These are to analyse the rotational splitting with the first-order treatment of GYRE and to neglect the rotational splitting in the selection of the best model and computation of the statical parameter estimates (though the rotational splitting is still used in the optimisation of the rotation frequency for each evolutionary track). We now briefly show how to employ these alternative methods:
+As described in Section 5 and Appendix B of Vanrespaille et al. (submitted), AMPHAROS features some alternative modelling approaches. These are to analyse the rotational splitting with the first-order treatment of GYRE and to neglect the rotational splitting in the selection of the best model and computation of the statical parameter estimates (though the rotational splitting is still used in the optimisation of the rotation frequency for each evolutionary track). We now briefly show how to employ these alternative methods:
 
 
 ### Neglecting rotational splitting in the cost function
 
-If you haven't done so already, read in the test grid and observations using
+If you haven't done so already, read in the test grid and observations using:
 
 ```python
-import main_functions as mf
-grid, obs_radial = mf.initialise_all("input/tutorial/obs_test_radial.tsv", "input/tutorial/grid_test.csv", "MESA_output_fullGrid/")
+import ampharos as amphy
+MESA_top_dir = "/path/to/MESA_output_fullGrid/"
+grid, obs_radial = amphy.initialise_all("input/tutorial/obs_test_radial.tsv", "input/tutorial/grid_test.csv", MESA_top_dir)
 ```
 
 To drop the rotational splitting from the cost function and thus the selection of the best model and construction of the statistical model, simply add the `exclude_splitting_from_chi2` flag to the `analyse_observations` function:
 
 ```python
-mf.analyse_observations(grid, obs_radial, n_pgs=[], exclude_splitting_from_chi2=True)
+amphy.analyse_observations(grid, obs_radial, n_pgs=[], exclude_splitting_from_chi2=True)
 ```
 
 Take a look at the `results/` and `plots/` subdirectories. You should see that new folders have been created with the suffix `_chi2SplittingExcluded`.
@@ -258,17 +258,18 @@ Take a look at the `results/` and `plots/` subdirectories. You should see that n
 
 **Requires pygyre be installed**
 
-To use GYRE's first-order rotation treatment rather than StORM's second-order treatment, you need to read in some additional information from GYRE when loading in the grid. As this slows down the grid loading somewhat and requires extra model output not all users may have, this is turned off by default. Load in that additional information using
+To use GYRE's first-order rotation treatment rather than StORM's second-order treatment, you need to read in some additional information from GYRE when loading in the grid. As this slows down the grid loading somewhat and requires extra model output not all users may have, this is turned off by default. Load the grid in with that additional information using:
 
 ```python
-import main_functions as mf
-grid, obs_radial = mf.initialise_all("input/tutorial/obs_test_radial.tsv", "input/tutorial/grid_test.csv", "MESA_output_fullGrid/", add_beta=True)
+import ampharos as amphy
+MESA_top_dir = "/path/to/MESA_output_fullGrid/"
+grid, obs_radial = amphy.initialise_all("input/tutorial/obs_test_radial.tsv", "input/tutorial/grid_test.csv", MESA_top_dir, add_beta=True)
 ```
 
-Then perform the actual analysis with
+Then perform the actual analysis with:
 
 ```python
-mf.analyse_observations(grid, obs_radial, n_pgs=[], use_GYRE=True)
+amphy.analyse_observations(grid, obs_radial, n_pgs=[], use_GYRE=True)
 ```
 
 You should find that this modelling is completed much faster than when using StORM. Take a look at the `results/` and `plots/` subdirectories. You should see that new folders have been created with the suffix `_GYRE`.
@@ -278,11 +279,11 @@ Note that you can also turn off the rotational splitting's contributions to the 
 
 ## Modifying the code, figures, or output
 
-Users are welcome to adapt the code for their own purposes. The code is spread over four Python files:
- - `main_functions.py`: These are the top level functions that the user is expected to interact with the most. Here the user can control what plots are created, how the rotation frequency is optimised, how the statistical model is computed, which history results to add to the output, etc.
- - `visualisation.py`: This contains the functions used to create figures. Users can adapt these to their own preferences. Most functions already have a number of arguments to help the user optimise them, though creating more functions or further altering the ones there is encouraged as well.
- - `io_functions.py`: These functions help read in the model grid and observations and create the output of the code. Unless you need the code to read in observations or models from a file format is is currently not compatible with, it is not recommended to change in input functions. Altering the output of the code is of course not as risky.  
- - `support_functions.py`: These functions primarily exist to aid other functions, so changes here will propagate. Be cautious when altering these functions!
+Users are welcome to adapt AMPHAROS for their own purposes. The code is spread over four Python files:
+ - `__init__.py`: The top level functions that the user is expected to interact with the most are contained here. Here the user can control what plots are created, how the rotation frequency is optimised, how the statistical model is computed, which history results to add to the output, etc.
+ - `visualisation.py`: This contains the functions used to create figures. Most functions already have a number of arguments to help the user optimise the figures, though creating more functions or further altering the functionality there is encouraged as well.
+ - `io_functions.py`: These functions help read in the model grid and observations and create the output of the code.
+ - `support_functions.py`: These functions primarily exist to aid other functions in the other three files, so changes here will propagate. Be cautious when altering these functions!
 
 
 ## Common warning messages
@@ -296,7 +297,7 @@ This warning occurs when a particular mode is not present in the StORM summaries
 
 2. **make_plots_to_pick_npg : No models compatible with log_Teff and log_L!**
 
-This warning occurs when no evolutionary track's optimised model lies within the observed 2-sigma error ellipse in the HRD. This usually indicates the radial order just tried out is wrong or that the parameter space provided through the parameter file does not cover the star's observed position on the HRD. Alternatively, the provided base-10 logs of the effective temperature in K or luminosity in solar luminosity might be mistaken or their uncertainties underestimated.
+This message appears when no evolutionary track's optimised model lies within the observed 2-sigma error ellipse in the HRD. This usually indicates the radial order just tried out is wrong or that the parameter space provided through the parameter file does not cover the star's observed position on the HRD. Alternatively, the provided base-10 logs of the effective temperature in K or luminosity in solar luminosity might be mistaken or their uncertainties underestimated.
 
 When this message appears, the code will create what plots and output it can, but these should be considered unreliable.
 
@@ -310,25 +311,25 @@ When one or more of these warnings show up (they often appead together), no plot
 
 4. **Missing GYRE file**
 
-This warning can occur when loading in the grid with `add_beta=True` when no GYRE output was found at a particular age when StORM output was found. In that case, the $\beta = 1 - C_{nl}$ is left empty for that given model and we count on interpolation of $\beta$ from the surrounding output. These usually occur near the terminal-age main sequence ($X_c < 0.05$), so unless you model a highly evolved star and are missing so many GYRE summaries that interpolation becomes unreliable, this message can be safely ignored.
+This message can appear when loading in the grid with `add_beta=True` when no GYRE output was found at a particular age when StORM output was found. In that case, the $\beta = 1 - C_{nl}$ is left empty for that given model and we count on interpolation of $\beta$ from the surrounding output. These usually occur near the terminal-age main sequence ($X_c < 0.05$), so unless you model a highly evolved star and are missing so many GYRE summaries that interpolation becomes unreliable, this message can be safely ignored.
 
 
 ## Contact
 
-Questions, comments, and suggestions are very much welcome and can be sent to the author of the code, Mathijs Vanrespaille (mathijs.vanrespaille@kuleuven.be)
+Questions, comments, and suggestions are very much welcome and can be sent to AMPHAROS's author, Mathijs Vanrespaille (mathijs.vanrespaille@kuleuven.be)
 
 
 ## How to cite this code
 
 If you use this forward modelling code in your publications, please cite the following paper, which describes the methodology and first scientific application:
 
-ADD LINK TO NASA ADS
+(Link to NASA ADS once available)
 
 ```
 INSERT COPYABLE .BIB ENTRY FROM THE ADS
 ```
 
 
-## Liscence
+## Licence
 
-This software is distributed under a GNU General Public License v3.0 (GNUgplv3). The terms and conditions are detailed in the file `COPYING`. To briefly summarise, this means you may copy, modify, and re-distribute the software as long as you track changes/dates in source files. Any modifications must be tracked and described upon re-distribution and the re-distributed version of the code must use the same liscence.
+This software is distributed under a GNU General Public License v3.0 (GNUgplv3). The terms and conditions are detailed in the file `COPYING`. To briefly summarise, this means you may copy, modify, and re-distribute the software as long as any modifications are tracked and described upon re-distribution. The re-distributed version of the code must use the same licence.
