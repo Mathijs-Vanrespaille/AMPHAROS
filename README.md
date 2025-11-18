@@ -1,5 +1,7 @@
 This tutorial will teach you the basics of Asteroseismic Modelling of Hot Pulsators Accounting for Rotation using Oscillation code StORM (AMPHAROS), the forward modelling code presented in Vanrespaille et al. (submitted). The user is expected to have read Section 4 of that paper to understand the default forward modelling methodology. Also beneficial to read are Section 3 for a description of the stellar models and oscillation computations and Section 5 and Appendix B for the alternative methods included in AMPHAROS.
 
+# Installation
+
 ## Requirements
 
 To run AMPHAROS, the following packages are required. The code is not expected to strongly depend on the specific versions used. Nonetheless, we list the versions used to test the code and collect the results presented in Vanrespaille et al. (submitted) for debugging purposes:
@@ -13,7 +15,7 @@ To run AMPHAROS, the following packages are required. The code is not expected t
  - Optional: pygyre (1.4)
 
 
-## Installation
+## Install instructions
 
 To install the AMPHAROS Python package, create and navigate into an appropriate folder, for example `~/ampharos/`.
 Download the [GitHub repository]{https://github.com/Mathijs-Vanrespaille/AMPHAROS} and unzip it there. Alternatively, clone the repository using
@@ -33,7 +35,7 @@ python -m pip install -e ~/ampharos/
 You have successfully installed AMPHAROS, congratulations! To verify it has been installed correctly, you can test the installation by trying out the example walkthrough detailed below.
 
 
-## Input for the code
+# Input for the code
 
 The user has to provide three things to the code:
 
@@ -131,7 +133,7 @@ Note that adding more columns is permitted, to add comments for instance, which 
 Examples of such a file can be found in this GitHub repository at `input/tutorial/obs_test_radial.tsv`, `input/tutorial/obs_test_nonRadial.tsv`, and `input/tutorial/obs_test_nonRadial_withVariations.tsv`. The observation files used in Vanrespaille et al. (submitted) can be found in the subdirectory `input/observations/`.
 
 
-## Walkthrough
+# Example Walkthrough
 
 In this section, we provide some examples with increasing complexity on how to use the code using the default methodology described in Section 4 of Vanrespaille et al. (submitted).
 
@@ -239,7 +241,6 @@ amphy.analyse_observations(grid, obs_radial, n_pgs=[], exclude_splitting_from_ch
 Take a look at the `results/` and `plots/` subdirectories. You should see that new folders have been created with the suffix `_chi2SplittingExcluded`.
 
 
-
 ### First-order rotation treatment
 
 **Requires pygyre be installed**
@@ -263,16 +264,18 @@ You should find that this modelling is completed much faster than when using StO
 Note that you can also turn off the rotational splitting's contributions to the cost function by setting `exclude_splitting_from_chi2=True`. Also note that you can still analyse the star with second-order effects by setting `use_GYRE=False` with the same grid already loaded in.
 
 
-## Modifying the code, figures, or output
+## Optimising your grid input
 
-Users are welcome to adapt AMPHAROS for their own purposes. The code is spread over four Python files:
- - `__init__.py`: The top level functions that the user is expected to interact with the most are contained here. Here the user can control what plots are created, how the rotation frequency is optimised, how the statistical model is computed, which history results to add to the output, etc.
- - `visualisation.py`: This contains the functions used to create figures. Most functions already have a number of arguments to help the user optimise the figures, though creating more functions or further altering the functionality there is encouraged as well.
- - `io_functions.py`: These functions help read in the model grid and observations and create the output of the code.
- - `support_functions.py`: These functions primarily exist to aid other functions in the other three files, so changes here will propagate. Be cautious when altering these functions!
+The functions `initialise_all` features a few more optional parameters that have not been discussed in the walkthrough above yet. These let the user optimise what parts of the model grid and oscillation computations to include or ignore, hence trading parameter space coverage for computational speed. We briefly explain the options here and provide recommended values for the asteroseismic forward modelling of beta Cephei pulsators:
+
+ - `Xc_min`: Smallest central hydrogen mass fraction to include in the grid. StORM summaries for an Xc smaller than this minimum are not loaded in and extrapolating beyond this minimum in the age fixing is not permitted. If None, no filtering based on the lower limit of the central hydrogen mass fraction is done. The default value is 0.0001. In most applications, unless one is modelling a highly evolved pulsator, this can be set higher, e.g. to 0.01.
+ - `Xc_max`: Largest central hydrogen mass fraction to include in the grid. StORM summaries for an Xc greater than this maximum are not loaded in and extrapolating beyond this maximum in the age fixing is not permitted. If None, no filtering based on the upper limit of the central hydrogen mass fraction is done. The default value is 0.7012. As beta Cephei stars are primarily expected to occur in the second half of the main sequence, it is usually safe to lower this upper limit, e.g. to 0.5.
+ - `frots_rel_to_include`: Which rotation rates relative to the Keplerian critical rotation rate to extract from the StORM summaries. These relative rotation rates must be included in all summaries, otherwise the grid initialisation will fail. Leave empty to include all frots_rel available in the StORM summaries. The default value is []. These can be used to limit the number of rotation rates for which the age needs to be optimised. For instance, if one has a slowly rotating beta Cephei star, say with observed rotation splitting on the order of a few 10$ ^{-2} $ cycles per day (d$ ^{-1} $), one might provide `frots_rel_to_include = [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10]`. Herein, bear in mind that the typical Keplerian critical rotation frequency of a beta Cephei pulsator is around 1 or 2 cycles per day (d$ ^{-1} $).
+ - `ls_to_include`: The degrees of the modes to be read in. One entry for each combination of (l,n_pg). Must be of the same length as n_pgs_to_include. The default value is [0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,2,2].
+ - `n_pgs_to_include`: The radial orders of the modes to be read in and to try fitting the observations against. These are defined from the Eckart-Scuflaire-Osaki scheme, except for l=1 modes, which use the Takata scheme. One entry for each combination of (l,n_pg). This list must be of the same length as ls_to_include. The default value is [0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,2,2]
 
 
-## Common warning messages
+# Common warning messages
 
 We show some examples of commonly encountered warning messages and what to do about them.
 
@@ -300,12 +303,21 @@ When one or more of these warnings show up (they usually appear together), no pl
 This message can appear when loading in the grid with `add_beta=True` when no GYRE output was found at a particular age when StORM output was found. In that case, the $\beta = 1 - C_{nl}$ is left empty for that given model and we count on interpolation of $\beta$ from the surrounding output. These usually occur near the terminal-age main sequence ($X_c < 0.05$), so unless you model a highly evolved star and are missing so many GYRE summaries that interpolation becomes unreliable, this message can be safely ignored.
 
 
-## Contact
+# Modifying the code, figures, or output
+
+Users are welcome to adapt AMPHAROS for their own purposes. The code is spread over four Python files:
+ - `__init__.py`: The top level functions that the user is expected to interact with the most are contained here. Here the user can control what plots are created, how the rotation frequency is optimised, how the statistical model is computed, which history results to add to the output, etc.
+ - `visualisation.py`: This contains the functions used to create figures. Most functions already have a number of arguments to help the user optimise the figures, though creating more functions or further altering the functionality there is encouraged as well.
+ - `io_functions.py`: These functions help read in the model grid and observations and create the output of the code.
+ - `support_functions.py`: These functions primarily exist to aid other functions in the other three files, so changes here will propagate. Be cautious when altering these functions!
+
+
+# Contact
 
 Questions, comments, and suggestions are very much welcome and can be sent to AMPHAROS's author, Mathijs Vanrespaille (mathijs.vanrespaille@kuleuven.be)
 
 
-## How to cite this code
+# How to cite this code
 
 If you use this forward modelling code in your publications, please cite the following paper, which describes the methodology and first scientific application:
 
@@ -316,6 +328,6 @@ INSERT COPYABLE .BIB ENTRY FROM THE ADS
 ```
 
 
-## Licence
+# Licence
 
 This software is distributed under a GNU General Public License v3.0 (GNUgplv3). The terms and conditions are detailed in the file `COPYING`. To briefly summarise, this means you may copy, modify, and re-distribute the software as long as any modifications are tracked and described upon re-distribution. The re-distributed version of the code must use the same licence.
