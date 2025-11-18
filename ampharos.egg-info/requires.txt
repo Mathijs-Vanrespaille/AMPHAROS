@@ -1,7 +1,7 @@
-matplotlib
-h5py
-numpy
-scipy
+matplotlib>=3.5
+h5py>=3.12
+numpy>=1.26
+scipy>=1.13
 
 [first_order_rotation_treatment]
 pygyre

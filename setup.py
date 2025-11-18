@@ -18,6 +18,6 @@ setuptools.setup(
     url="https://github.com/Mathijs-Vanrespaille/AMPHAROS.git",
     license='GNU GENERAL PUBLIC LICENSE Version 3',
     python_requires='>=3.9',
-    install_requires=["matplotlib", "h5py", "numpy", "scipy"],
+    install_requires=["matplotlib >= 3.5", "h5py >= 3.12", "numpy >= 1.26", "scipy >= 1.13"],
     extras_require={"first_order_rotation_treatment":"pygyre"}
 )
