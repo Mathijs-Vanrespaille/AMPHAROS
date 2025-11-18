@@ -73,7 +73,7 @@ def initialise_all(observation_file, parameter_file, MESA_output_dir,
         Eckart-Scuflaire-Osaki scheme, except for l=1 modes, which use the
         Takata scheme. One entry for each combination of (l,n_pg). Must be of
         the same length as ls_to_include
-        Defaults to [0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,2,2]
+        Defaults to [1,2,3,4,-2,-1,1,2,3,4,-2,-1,0,1,2,3,4]
     sort_by_l: bool
         Whether to sort the read multiplets by their degree
     sort_by_freq: bool
