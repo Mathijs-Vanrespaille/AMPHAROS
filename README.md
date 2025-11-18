@@ -85,9 +85,9 @@ The model output is expected to be structured as follows:
 Note that the `gyre_summaries` are optional and are only necessary when using the alternative modelling method employing the first-order rotational treatment, described in Appendix B of Vanrespaille et al. (submitted).  
 
 Herein *Zi* is the initial metallicity of model *i* with three decimal places, *Mi* the initial mass in solar masses with two decimal places, *logDi* the mixing coefficient in cgs at the base of the envelope with one decimal place, *fovi* the exponential overshoot parameter in local pressure scale with three decimal places, *Xcij* the central hydrogen mass fraction at which output step *j* in model *i* is saved and *mnij* is the corresponding MESA model number. *MESA_top_dir* is the top level directory containing all the model output, which the user needs to provide to the code.
-The files ending in .hist are the history files created by MESA. Files ending in .HDF in the `gyre_summaries` subdirectories are the summary files created by GYRE. Files ending in .hdf5 are custom summaries of the frequencies predicted by StORM at the different rotation rates for a given input model.
+The files ending in .hist are the history files created by MESA. Files ending in .HDF in the `gyre_summaries` subdirectories are the summary files created by GYRE. Files ending in .hdf5 are custom summaries of the frequencies predicted by StORM at the different rotation rates for a given input model. These have been created with the Python scripts provided in the StORM setup subdirectory in the Zenodo repository (link to be added).
 
-These have been created with the Python scripts provided in the StORM setup subdirectory in the Zenodo repository (link to be added). The models and StORM output in this grid can be generated with the MESA work directory and StORM setup in the Zenodo repository accompanying Vanrespaille et al. (submitted) (link to be provided). The model output used in Vanrespaille et al. (submitted) are available at the KU Leuven Research Data Repository (link to be added).
+Due to the size of the model output the code requires, the full model output is not included in the GitHub, though a small subgrid is provided for the example walkthrough below. The remaining models and StORM output in this grid can be generated with the MESA work directory and StORM setup in the Zenodo repository accompanying Vanrespaille et al. (submitted) (link to be provided). All the model output used in Vanrespaille et al. (submitted) are also available at the KU Leuven Research Data Repository (link to be added). Note that this contains far more than what AMPHAROS requires.
 
 
 ### Parameter file
@@ -148,10 +148,10 @@ In order to use the code, open a Python terminal, Jupyter notebook, or something
 import ampharos as amphy
 ```
 
-Next, you need to load in the observations and the model grid. As this can take a significant amount of time (> 1h when loading in 1505 models), we load in a much smaller subgrid for teaching purposes described in `input/tutorial/grid_test.csv`. The models are stored in `/path/to/MESA_output_fullGrid/`, where you will need to replace `/path/to/` with the relevant absolute path. To do so, run the following in your Python terminal:
+Next, you need to load in the observations and the model grid. As this can take a significant amount of time (> 1h when loading in 1505 models), we load in a much smaller subgrid for teaching purposes described in `input/tutorial/grid_test.csv`. Say the models are stored in `/path/to/model_grid/`, where you will need to replace `/path/to/` with the relevant absolute path. For this test, you can use the small subgrid provided in the GitHub repository. Assuming you installed AMPHAROS in `~/ampharos/` run the following in your Python terminal:
 
 ```python
-MESA_top_dir = "/path/to/MESA_output_fullGrid/"
+MESA_top_dir = "~/ampharos/model_grid/"
 grid, obs_radial = amphy.initialise_all("input/tutorial/obs_test_radial.tsv", "input/tutorial/grid_test.csv", MESA_top_dir)
 ```
 
