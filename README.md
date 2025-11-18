@@ -15,7 +15,22 @@ To run AMPHAROS, the following packages are required. The code is not expected t
 
 ## Installation
 
-CONTINUE
+To install the AMPHAROS Python package, create and navigate into an appropriate folder, for example `~/ampharos/`.
+Download the [GitHub repository]{https://github.com/Mathijs-Vanrespaille/AMPHAROS} and unzip it there. Alternatively, clone the repository using
+
+```bash
+git clone https://github.com/Mathijs-Vanrespaille/AMPHAROS
+```
+
+Now create an environment to run AMPHAROS in and perform a local pip install. If you use anaconda (or miniconda), run the following:
+
+```bash
+conda create -n ampharos python=3.9
+conda activate ampharos
+python -m pip install -e ~/ampharos/
+```
+
+You have successfully installed AMPHAROS, congratulations! To verify it has been installed correctly, you can test the installation by trying out the example walkthrough detailed below.
 
 
 ## Input for the code
