@@ -724,14 +724,14 @@ def make_all_the_plots(grid, observation, all_results, save_dir="plots",
                              save_name=f"chi2_in_HRD_npg{n_pg_main}",
                              show=show)
 
-        plot_chi2_against_grid_params(grid, results, n_pg_main,
-                                      show_best_model=True,
-                                      show_statistical_model=True, log=True,
-                                      hollow_spectro_incompatible=True,
-                                      title=f'{results["name"]} - n_pg_main = {n_pg_main}',
-                                      save=True, save_dir=save_dir,
-                                      save_name=f"chi2_grid_params_npg{n_pg_main}",
-                                      show=show)
+        # plot_chi2_against_grid_params(grid, results, n_pg_main,
+        #                               show_best_model=True,
+        #                               show_statistical_model=True, log=True,
+        #                               hollow_spectro_incompatible=True,
+        #                               title=f'{results["name"]} - n_pg_main = {n_pg_main}',
+        #                               save=True, save_dir=save_dir,
+        #                               save_name=f"chi2_grid_params_npg{n_pg_main}",
+        #                               show=show)
 
         plot_chi2_against_model_params(results, show_best_model=True,
                                        show_statistical_model=True,
@@ -742,14 +742,14 @@ def make_all_the_plots(grid, observation, all_results, save_dir="plots",
                                        save_name=f"chi2_model_params_npg{n_pg_main}",
                                        show=show)
 
-        plot_chi2_coloured_grid_params(grid, results, show_best_model=True,
-                                       show_statistical_model=True,
-                                       log=True, only_plot_compatible=False,
-                                       title=f'{results["name"]} - n_pg_main = {n_pg_main}',
-                                       colourmap="plasma_r", cmin=None,
-                                       cmax=None, save=True, save_dir=save_dir,
-                                       save_name=f"chi2_coloured_grid_params_npg{n_pg_main}",
-                                       show=show)
+        # plot_chi2_coloured_grid_params(grid, results, show_best_model=True,
+        #                                show_statistical_model=True,
+        #                                log=True, only_plot_compatible=False,
+        #                                title=f'{results["name"]} - n_pg_main = {n_pg_main}',
+        #                                colourmap="plasma_r", cmin=None,
+        #                                cmax=None, save=True, save_dir=save_dir,
+        #                                save_name=f"chi2_coloured_grid_params_npg{n_pg_main}",
+        #                                show=show)
 
         plot_grid_params_chi2_corner(grid, results, show_best_model=True,
                                      show_statistical_model=True, log=True,
@@ -760,12 +760,12 @@ def make_all_the_plots(grid, observation, all_results, save_dir="plots",
                                      save_name=f"corner_grid_params_npg{n_pg_main}",
                                      show=show)
 
-        plot_model_params_histograms(results, age_log=True,
-                                     hollow_spectro_incompatible=True,
-                                     title=f'{results["name"]} - n_pg_main = {n_pg_main}',
-                                     save=True, save_dir=save_dir,
-                                     save_name=f"model_params_histograms_npg{n_pg_main}",
-                                     show=show)
+        # plot_model_params_histograms(results, age_log=True,
+        #                              hollow_spectro_incompatible=True,
+        #                              title=f'{results["name"]} - n_pg_main = {n_pg_main}',
+        #                              save=True, save_dir=save_dir,
+        #                              save_name=f"model_params_histograms_npg{n_pg_main}",
+        #                              show=show)
 
         plot_Xc_grid_params(grid, results, show_best_model=True,
                             show_statistical_model=True,
@@ -782,11 +782,11 @@ def make_all_the_plots(grid, observation, all_results, save_dir="plots",
                                             save_name=f"comparing_frequencies_npg{n_pg_main}",
                                             show=show)
 
-    plot_models_and_observed_HRD(best_models, observation,
-                                 title=f'{results["name"]}', labels=labels,
-                                 save=True, save_dir=save_dir,
-                                 save_name=f"comparing_HRD_best_models",
-                                 show=show, show_IS=True)
+    # plot_models_and_observed_HRD(best_models, observation,
+    #                              title=f'{results["name"]}', labels=labels,
+    #                              save=True, save_dir=save_dir,
+    #                              save_name=f"comparing_HRD_best_models",
+    #                              show=show, show_IS=True)
 
 
 def make_plots_to_pick_npg(observation, all_results, save_dir, n_pgs=[1,2,3],
