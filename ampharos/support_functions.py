@@ -4,9 +4,9 @@ import os
 import scipy.interpolate as scint
 import sys
 
-from .io_functions import read_model_parameters, read_storm_tracks, \
-                          read_MESA_history_columns, \
-                          read_model_number_and_Xc_save
+from io_functions import read_model_parameters, read_storm_tracks, \
+                         read_MESA_history_columns, \
+                         read_model_number_and_Xc_save
 
 
 ##### MISCELLANEOUS ############################################################

@@ -1,11 +1,11 @@
-from .support_functions import initialise_grid, find_age_cross_zonal_mode, \
-                               interpolate_track_to_model_in_age, \
-                               interpolate_models_in_frot_with_StORM, \
-                               is_model_compatible_with_spectroscopy, \
-                               number_observations, standardised_chi2, \
-                               interpolate_history_columns_in_age
-from .io_functions import write_results, create_observation_dict
-from .visualisation import *
+from support_functions import initialise_grid, find_age_cross_zonal_mode, \
+                              interpolate_track_to_model_in_age, \
+                              interpolate_models_in_frot_with_StORM, \
+                              is_model_compatible_with_spectroscopy, \
+                              number_observations, standardised_chi2, \
+                              interpolate_history_columns_in_age
+from io_functions import write_results, create_observation_dict
+from visualisation import *
 
 import pandas as pd
 import numpy as np
