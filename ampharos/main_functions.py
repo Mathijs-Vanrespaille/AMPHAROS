@@ -3,7 +3,8 @@ from .support_functions import initialise_grid, find_age_cross_zonal_mode, \
                               interpolate_models_in_frot_with_StORM, \
                               is_model_compatible_with_spectroscopy, \
                               number_observations, standardised_chi2, \
-                              interpolate_history_columns_in_age
+                              interpolate_history_columns_in_age, \
+                              does_track_cross_HRD_error_ellipse
 from .io_functions import write_results, create_observation_dict
 from .visualisation import *
 
@@ -263,12 +264,26 @@ def find_age_cross_and_frot(grid, observation, results, n_pg_main,
         the StORM grid.
 
     """
-    results["ages_cross"], results["Xcs_cross"] = [], []
-    results["frots_best"], results["frots_rel_best"] = [], []
-    results["models"] = []
-    results["spectro_compatible"], results["in_statistical_model"]  = [], []
+    N = len(all_tracks)
+    results["ages_cross"] = np.empty(N)
+    results["Xcs_cross"] = np.empty(N)
+    results["frots_best"] = np.empty(N)
+    results["frots_rel_best"] = np.empty(N)
+    results["models"] = np.empty(N)
+    results["spectro_compatible"] = np.empty(N)
+    results["in_statistical_model"] = np.empty(N)
     results["n_pg_main"] = n_pg_main
-    for tracks in grid["all_tracks"] :
+    results["was_modelled"] = np.empty(N)
+    for i,tracks in enumerate(grid["all_tracks"]) :
+        if not does_track_cross_HRD_error_ellipse(tracks, observation) :
+            # Fill with NaNs
+            for key in ("ages_cross", "Xcs_cross", "frots_best",
+                        "spectro_compatible", "in_statistical_model") :
+                results[key] = np.nan
+            results["was_modelled"][i] = False # Track we did not model this
+            continue
+
+        results["was_modelled"][i] = True
         if len(frots_rel_to_include) == 0 :
             frots_rel = tracks["frots_rel"]
         else :
@@ -296,17 +311,13 @@ def find_age_cross_and_frot(grid, observation, results, n_pg_main,
                                                              add_beta=True)
             model_best_frot = interpolate_model_in_frot_with_GYRE(observation,
                                                                   model_nonRot)
-        results["ages_cross"].append(model_best_frot["age"])
-        results["Xcs_cross"].append(model_best_frot["Xc"])
-        results["frots_best"].append(model_best_frot["frot_best"])
-        results["frots_rel_best"].append(model_best_frot["frot_rel_best"])
-        results["models"].append(model_best_frot)
-        results["spectro_compatible"].append(is_model_compatible_with_spectroscopy(model_best_frot, observation, sigma_tol=2.))
-        results["in_statistical_model"].append(is_model_compatible_with_spectroscopy(model_best_frot, observation, sigma_tol=2.))
-    # Turn the lists into numpy.arrays to simplify later analysis and plotting
-    for key in ("ages_cross", "Xcs_cross", "frots_best", "spectro_compatible",
-                "in_statistical_model") :
-        results[key] = np.array(results[key])
+        results["ages_cross"][i] = model_best_frot["age"]
+        results["Xcs_cross"][i] = model_best_frot["Xc"]
+        results["frots_best"][i] = model_best_frot["frot_best"]
+        results["frots_rel_best"][i] = model_best_frot["frot_rel_best"]
+        results["models"][i] = model_best_frot
+        results["spectro_compatible"][i] = is_model_compatible_with_spectroscopy(model_best_frot, observation, sigma_tol=2.)
+        results["in_statistical_model"][i] = is_model_compatible_with_spectroscopy(model_best_frot, observation, sigma_tol=2.)
 
 
 def compute_chi2s(observation, results, exclude_splitting_from_chi2=False) :

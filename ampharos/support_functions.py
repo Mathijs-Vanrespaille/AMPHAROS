@@ -1451,6 +1451,40 @@ def standardised_chi2_components(model, observation) :
 ##### NAVIGATING GRID ##########################################################
 
 
+def does_track_cross_HRD_error_ellipse(tracks, observation, sigma_tol=2.) :
+    """
+    Check if the model is sufficiently close to the spectroscopic observations
+    to be considered plausible.
+
+    Author: Mathijs Vanrespaille
+
+    ------- Parameters -------
+    tracks: dict
+        The list of dictionaries summarising the StORM output of a MESA
+        evolutionary run for each dictionary as created read_storm_tracks
+    observation: dict
+        The dictionary describing all the observations of a star as defined in
+        create_observation_dict
+    sigma_tol: float
+        How many times the uncertainty the model can be removed from the
+        observations
+        Defaults to 2
+
+    ------- Returns -------
+    tracks_cross: array of bools
+        Whether these evolutionary tracks cross the 2sigma error ellipse of the
+        observations on the HRD
+    """
+    log_Teff_track = tracks["log_Teffs"]
+    log_L_track = tracks["log_Ls"]
+    log_Teff_obs = observation["log_Teff"]
+    log_Teff_obs_err = observation["log_Teff_err"]
+    log_L_obs = observation["log_L"]
+    log_L_obs_err = observation["log_L_err"]
+    return (np.sqrt(((log_Teff_track - log_Teff_obs) / log_Teff_obs_err)**2 + \
+           ((log_L_track - log_L_obs) / log_L_obs_err)**2) < sigma_tol).any()
+
+
 def find_nearest_model_number(tracks, Xc) :
     """
     Find the MESA model number at which MESA saved output with the actual
