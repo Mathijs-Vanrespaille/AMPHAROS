@@ -18,7 +18,7 @@ from ast import literal_eval
 
 
 def initialise_all(observation_file, parameter_file, MESA_output_dir,
-                   frots_rel_to_include=[], Xc_min=1e-4, Xc_max=0.7012,
+                   frots_rel_to_include=[], Xc_min=1e-2, Xc_max=0.7012,
                    add_beta=False,
                    ls_to_include=[0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,2,2],
                    n_pgs_to_include=[1,2,3,4,-2,-1,1,2,3,4,-2,-1,0,1,2,3,4],
