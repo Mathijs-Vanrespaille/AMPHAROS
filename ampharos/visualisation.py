@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-from support_functions import get_frequency_track, interpolate_frequency_track
-from io_functions import read_MESA_history_columns
+from .support_functions import get_frequency_track, interpolate_frequency_track
+from .io_functions import read_MESA_history_columns
 
 
 
