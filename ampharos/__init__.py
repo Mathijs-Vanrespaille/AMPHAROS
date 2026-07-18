@@ -1,12 +1,12 @@
 from .support_functions import initialise_grid, find_age_cross_zonal_mode, \
-                               interpolate_track_to_model_in_age, \
-                               interpolate_models_in_frot_with_StORM, \
-                               is_model_compatible_with_spectroscopy, \
-                               number_observations, standardised_chi2, \
-                               interpolate_history_columns_in_age, \
-                               interpolate_model_in_frot_with_GYRE
+                              interpolate_track_to_model_in_age, \
+                              interpolate_models_in_frot_with_StORM, \
+                              is_model_compatible_with_spectroscopy, \
+                              number_observations, standardised_chi2, \
+                              interpolate_history_columns_in_age, \
+                              interpolate_model_in_frot_with_GYRE, \
+                              does_track_cross_HRD_error_ellipse
 from .io_functions import write_results, create_observation_dict
-
 from .visualisation import *
 
 import pandas as pd
@@ -18,7 +18,7 @@ from ast import literal_eval
 
 
 def initialise_all(observation_file, parameter_file, MESA_output_dir,
-                   frots_rel_to_include=[], Xc_min=1e-2, Xc_max=0.7012,
+                   frots_rel_to_include=[], Xc_min=0.01, Xc_max=0.7012,
                    add_beta=False,
                    ls_to_include=[0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,2,2],
                    n_pgs_to_include=[1,2,3,4,-2,-1,1,2,3,4,-2,-1,0,1,2,3,4],
@@ -265,12 +265,26 @@ def find_age_cross_and_frot(grid, observation, results, n_pg_main,
         the StORM grid.
 
     """
-    results["ages_cross"], results["Xcs_cross"] = [], []
-    results["frots_best"], results["frots_rel_best"] = [], []
-    results["models"] = []
-    results["spectro_compatible"], results["in_statistical_model"]  = [], []
+    N = len(all_tracks)
+    results["ages_cross"] = np.empty(N)
+    results["Xcs_cross"] = np.empty(N)
+    results["frots_best"] = np.empty(N)
+    results["frots_rel_best"] = np.empty(N)
+    results["models"] = np.empty(N)
+    results["spectro_compatible"] = np.empty(N)
+    results["in_statistical_model"] = np.empty(N)
     results["n_pg_main"] = n_pg_main
-    for tracks in grid["all_tracks"] :
+    results["was_modelled"] = np.empty(N)
+    for i,tracks in enumerate(grid["all_tracks"]) :
+        if not does_track_cross_HRD_error_ellipse(tracks, observation) :
+            # Fill with NaNs
+            for key in ("ages_cross", "Xcs_cross", "frots_best",
+                        "spectro_compatible", "in_statistical_model") :
+                results[key] = np.nan
+            results["was_modelled"][i] = False # Track we did not model this
+            continue
+
+        results["was_modelled"][i] = True
         if len(frots_rel_to_include) == 0 :
             frots_rel = tracks["frots_rel"]
         else :
@@ -298,17 +312,13 @@ def find_age_cross_and_frot(grid, observation, results, n_pg_main,
                                                              add_beta=True)
             model_best_frot = interpolate_model_in_frot_with_GYRE(observation,
                                                                   model_nonRot)
-        results["ages_cross"].append(model_best_frot["age"])
-        results["Xcs_cross"].append(model_best_frot["Xc"])
-        results["frots_best"].append(model_best_frot["frot_best"])
-        results["frots_rel_best"].append(model_best_frot["frot_rel_best"])
-        results["models"].append(model_best_frot)
-        results["spectro_compatible"].append(is_model_compatible_with_spectroscopy(model_best_frot, observation, sigma_tol=2.))
-        results["in_statistical_model"].append(is_model_compatible_with_spectroscopy(model_best_frot, observation, sigma_tol=2.))
-    # Turn the lists into numpy.arrays to simplify later analysis and plotting
-    for key in ("ages_cross", "Xcs_cross", "frots_best", "spectro_compatible",
-                "in_statistical_model") :
-        results[key] = np.array(results[key])
+        results["ages_cross"][i] = model_best_frot["age"]
+        results["Xcs_cross"][i] = model_best_frot["Xc"]
+        results["frots_best"][i] = model_best_frot["frot_best"]
+        results["frots_rel_best"][i] = model_best_frot["frot_rel_best"]
+        results["models"][i] = model_best_frot
+        results["spectro_compatible"][i] = is_model_compatible_with_spectroscopy(model_best_frot, observation, sigma_tol=2.)
+        results["in_statistical_model"][i] = is_model_compatible_with_spectroscopy(model_best_frot, observation, sigma_tol=2.)
 
 
 def compute_chi2s(observation, results, exclude_splitting_from_chi2=False) :
@@ -726,14 +736,14 @@ def make_all_the_plots(grid, observation, all_results, save_dir="plots",
                              save_name=f"chi2_in_HRD_npg{n_pg_main}",
                              show=show)
 
-        plot_chi2_against_grid_params(grid, results, n_pg_main,
-                                      show_best_model=True,
-                                      show_statistical_model=True, log=True,
-                                      hollow_spectro_incompatible=True,
-                                      title=f'{results["name"]} - n_pg_main = {n_pg_main}',
-                                      save=True, save_dir=save_dir,
-                                      save_name=f"chi2_grid_params_npg{n_pg_main}",
-                                      show=show)
+        # plot_chi2_against_grid_params(grid, results, n_pg_main,
+        #                               show_best_model=True,
+        #                               show_statistical_model=True, log=True,
+        #                               hollow_spectro_incompatible=True,
+        #                               title=f'{results["name"]} - n_pg_main = {n_pg_main}',
+        #                               save=True, save_dir=save_dir,
+        #                               save_name=f"chi2_grid_params_npg{n_pg_main}",
+        #                               show=show)
 
         plot_chi2_against_model_params(results, show_best_model=True,
                                        show_statistical_model=True,
@@ -744,14 +754,14 @@ def make_all_the_plots(grid, observation, all_results, save_dir="plots",
                                        save_name=f"chi2_model_params_npg{n_pg_main}",
                                        show=show)
 
-        plot_chi2_coloured_grid_params(grid, results, show_best_model=True,
-                                       show_statistical_model=True,
-                                       log=True, only_plot_compatible=False,
-                                       title=f'{results["name"]} - n_pg_main = {n_pg_main}',
-                                       colourmap="plasma_r", cmin=None,
-                                       cmax=None, save=True, save_dir=save_dir,
-                                       save_name=f"chi2_coloured_grid_params_npg{n_pg_main}",
-                                       show=show)
+        # plot_chi2_coloured_grid_params(grid, results, show_best_model=True,
+        #                                show_statistical_model=True,
+        #                                log=True, only_plot_compatible=False,
+        #                                title=f'{results["name"]} - n_pg_main = {n_pg_main}',
+        #                                colourmap="plasma_r", cmin=None,
+        #                                cmax=None, save=True, save_dir=save_dir,
+        #                                save_name=f"chi2_coloured_grid_params_npg{n_pg_main}",
+        #                                show=show)
 
         plot_grid_params_chi2_corner(grid, results, show_best_model=True,
                                      show_statistical_model=True, log=True,
@@ -762,12 +772,12 @@ def make_all_the_plots(grid, observation, all_results, save_dir="plots",
                                      save_name=f"corner_grid_params_npg{n_pg_main}",
                                      show=show)
 
-        plot_model_params_histograms(results, age_log=True,
-                                     hollow_spectro_incompatible=True,
-                                     title=f'{results["name"]} - n_pg_main = {n_pg_main}',
-                                     save=True, save_dir=save_dir,
-                                     save_name=f"model_params_histograms_npg{n_pg_main}",
-                                     show=show)
+        # plot_model_params_histograms(results, age_log=True,
+        #                              hollow_spectro_incompatible=True,
+        #                              title=f'{results["name"]} - n_pg_main = {n_pg_main}',
+        #                              save=True, save_dir=save_dir,
+        #                              save_name=f"model_params_histograms_npg{n_pg_main}",
+        #                              show=show)
 
         plot_Xc_grid_params(grid, results, show_best_model=True,
                             show_statistical_model=True,
@@ -784,11 +794,11 @@ def make_all_the_plots(grid, observation, all_results, save_dir="plots",
                                             save_name=f"comparing_frequencies_npg{n_pg_main}",
                                             show=show)
 
-    plot_models_and_observed_HRD(best_models, observation,
-                                 title=f'{results["name"]}', labels=labels,
-                                 save=True, save_dir=save_dir,
-                                 save_name=f"comparing_HRD_best_models",
-                                 show=show, show_IS=True)
+    # plot_models_and_observed_HRD(best_models, observation,
+    #                              title=f'{results["name"]}', labels=labels,
+    #                              save=True, save_dir=save_dir,
+    #                              save_name=f"comparing_HRD_best_models",
+    #                              show=show, show_IS=True)
 
 
 def make_plots_to_pick_npg(observation, all_results, save_dir, n_pgs=[1,2,3],

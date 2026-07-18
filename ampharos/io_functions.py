@@ -2,6 +2,8 @@ import numpy as np
 import glob
 import h5py
 import os
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 
 
 ##### MISCELLANEOUS ############################################################
@@ -221,6 +223,88 @@ def create_observation_dict(row, sort_by_l, sort_by_freq) :
         observation["amps"] = [observation["amps"][i] for i in I_toSort]
 
     return observation
+
+
+def process_summary_file(storm_summary_path, MESA_model_dir,
+                         ls_track, ms_track, n_pgs_track,
+                         frots_rel_to_include, mn_lookup,
+                         add_beta):
+    # Get the model number (and central hydrogen fraction at which MESA was meant to save; unused here)
+    mn, Xc_save = read_model_number_and_Xc_save(storm_summary_path)
+    # The real central hydrogen fraction of this MESA model and other stellar parameters
+    age, Xc, logT, logL = mn_lookup[mn]
+
+    with h5py.File(storm_summary_path, "r") as storm_summary :
+        ls_ss = storm_summary['ls'][:]
+        npgs_ss = storm_summary['n_pgs'][:]
+        ms_ss = storm_summary["ms"][:]
+        freqs_ss = storm_summary["freqs_deformed"][:]
+        reliable_ss = storm_summary["track_reliable"][:]
+
+        lookup = {
+            (l, m, n_pg): i
+            for i, (l, m, n_pg) in enumerate(zip(ls_ss, ms_ss, npgs_ss))
+        }
+
+        f_K = storm_summary.attrs["f_K"]
+        frots_rel = np.array(storm_summary["frots_rel"])
+        if not len(frots_rel_to_include) == 0 :
+            # Get indices that are in the frots_rel_to_include
+            I = np.isin(frots_rel, frots_rel_to_include)
+        else :
+            I = [True]*len(frots_rel) # Get all the indices
+
+
+        reliables = np.empty(len(ls_track))
+        freqs = np.empty((len(ls_track), np.sum(I)))
+        for k, (l, m, n_pg) in enumerate(zip(ls_track, ms_track, n_pgs_track)) :
+            #index in storm summary
+            iss = lookup.get((l, m, n_pg))
+            if iss is not None :
+                reliable = bool(reliable_ss[iss])
+                reliables[k] = reliable
+                if reliable :
+                    freqs[k,:] = freqs_ss[iss, I]
+                else :
+                    freqs[k,:] = np.nan
+            else :
+                freqs[k,:] = np.nan
+                reliable = False
+            reliables[k] = reliable
+
+    if add_beta :
+        import pygyre as pyg
+        betas = np.empty(len(ls_track))
+        gyre_output_dir = f"{MESA_model_dir}/gyre_summaries/"
+        gyre_model_path = f"{gyre_output_dir}/gyre_Xc{Xc_save:.5f}_mn{mn}.HDF".format(Xc_save=Xc_save, mn=mn)
+        if not os.path.isfile(gyre_model_path) :
+            betas[:] = np.nan
+            print("Missing GYRE file : ", gyre_model_path)
+        gyre_output = pyg.read_output(gyre_model_path)
+
+        for k, (l, n_pg) in enumerate(zip(ls_track, n_pgs_track)) :
+            if l==1 and n_pg==0 :
+                betas[k] = np.nan
+                continue
+            if l == 0 :
+                betas[k] = np.nan
+                continue
+            if n_pg >= 4 :
+                betas[k] = 1.0
+                continue
+            beta_data = np.real(gyre_output[(gyre_output['l']==l) & \
+                                (gyre_output['n_pg']==n_pg)]['beta']).data
+            if len(beta_data) == 1 :
+                betas[k] = beta_data[0]
+            else :
+                betas[k] = np.nan
+
+    results = {"age": age, "mn": mn, "Xc": Xc, "Xc_save": Xc_save, "f_K": f_K,
+               "freqs": freqs, "track_reliable": reliable,
+               "log_Teff":logT, "log_L":logL}
+    if add_beta :
+        results["betas"] = betas
+    return results
 
 
 def read_MESA_history_column(history_file, column_name, dtype=float,
@@ -497,6 +581,12 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
         "mns": numpy.array of ints
             Model numbers at which MESA saved
             array length equals M
+        "log_Teffs":
+            base-10 logarithms of effective temperature in K
+            array length equals M
+        "log_Ls":
+            base-10 logarithms of luminosity in solar luminosities
+            array length equals M
         "frots": numpy.array of floats
             the rotation rates in cycles per day
             array length equals F
@@ -516,11 +606,11 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
         "freqs": numpy.array of numpy.arrays of numpy.array of floats
             Contains an array for each mode identity (l,m,n_pgs), rotation rate,
             and output step.
-            array dimensions equals K x F x M
+            array dimensions equals (K, F, M)
         "track_reliable": numpy.array of numpy.arrays of bools
             Whether the summarising algorithm did not detect any discrepancies
             with this each track
-            array dimensions equals K x M
+            array dimensions equals (K, M)
         "f_Ks": numpy.array of floats
             The Keplerian critical rotation rate of each model in cycles per day
             array length equals M
@@ -549,30 +639,33 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
             ms_track.append(m)
             n_pgs_track.append(n_pg)
 
-    K = len(ls_track) # Number of predicted tracks
-
     folder = "Z{Z:.3f}_M{M:.2f}_logD{logD:.1f}_fov{fov:.3f}".format(Z=Z,M=M,logD=logD,fov=fov)
     MESA_model_dir = "{MESA_output_dir}/{folder}/".format(MESA_output_dir=MESA_output_dir,folder=folder)
     history_file = "{MESA_model_dir}/{folder}.hist".format(MESA_model_dir=MESA_model_dir,folder=folder)
-    mn_history, Xc_history, age_history = read_MESA_history_columns(history_file,
-                                                                    ["model_number", "center_h1", "star_age"],
-                                                                    Xc_min=None,
-                                                                    Xc_max=None)
+    mn_hist, Xc_hist, age_hist, log_Teff_hist, log_L_hist = read_MESA_history_columns(history_file,
+                                                                                      ["model_number", "center_h1", "star_age", "log_Teff", "log_L"],
+                                                                                      Xc_min=Xc_min,
+                                                                                      Xc_max=Xc_max)
+    mn_lookup = {
+        mn: (age, Xc, logT, logL)
+        for mn, age, Xc, logT, logL in zip(mn_hist, age_hist, Xc_hist, log_Teff_hist, log_L_hist)
+    }
 
     storm_summary_paths = glob.glob("{MESA_model_dir}/storm_summaries/*.hdf5".format(MESA_model_dir=MESA_model_dir))
+    # Ignore entries that lie outside the requested range of central
+    # hydrogen fraction. Note that entries equal to the limits are allowed
+    mask = []
+    for storm_summary_path in storm_summary_paths :
+        # Get the model number and central hydrogen fraction at which MESA was meant to save
+        mn, Xc_save = read_model_number_and_Xc_save(storm_summary_path)
+        mask.append((Xc_min is None or Xc_save > Xc_min) and (Xc_max is None or Xc_save < Xc_max))
+    storm_summary_paths = [x for x, keep in zip(storm_summary_paths, mask) if keep]
 
-    all_tracks = {"ages":[], "Xcs":[], "Xc_saves":[], "mns":[],
-                  "Xc_min":Xc_min, "Xc_max":Xc_max,
-                  "MESA_model_dir":MESA_model_dir,
-                  "histfile":history_file,
-                  "ms":np.array(ms_track),
-                  "ls":np.array(ls_track),
-                  "n_pgs":np.array(n_pgs_track),
-                  "freqs":[[] for i in range(len(ls_track))],
-                  "track_reliable":[[] for i in range(len(ls_track))],
-                  "f_Ks":[]}
-    if add_beta :
-        all_tracks["betas"] = [[] for i in range(len(ls_track))]
+    K = len(ls_track) # Number of predicted tracks
+    M = len(storm_summary_paths) # Number of summaries
+    F = len(frots_rel_to_include) # Number of considered relative rotation rates
+    if F == 0 :
+        F = 41 # Hard coded for now
 
     with h5py.File(storm_summary_paths[0], "r") as storm_summary :
         f_K = storm_summary.attrs["f_K"]
@@ -580,96 +673,63 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
             frots_rel = np.array(storm_summary["frots_rel"])
         else :
             frots_rel = np.array(frots_rel_to_include)
-    all_tracks["frots_rel"] = frots_rel
 
-    for storm_summary_path in storm_summary_paths :
-        # Get the model number and central hydrogen fraction at which MESA was meant to save
-        mn, Xc_save = read_model_number_and_Xc_save(storm_summary_path)
-        # The real central hydrogen fraction of this MESA model
-        Xc = Xc_history[np.where(mn_history == mn)[0]][0]
-        # The age of this MESA model
-        age = age_history[np.where(mn_history == mn)[0]][0]
-        # Ignore entries that lie outside the requested range of central
-        # hydrogen fraction. Note that entries equal to the limits are allowed
-        if (Xc_min is not None and Xc < Xc_min) or \
-            (Xc_max is not None and Xc > Xc_max) :
-            continue
-
-        all_tracks["ages"].append(age)
-        all_tracks["Xcs"].append(Xc)
-        all_tracks["Xc_saves"].append(Xc_save)
-        all_tracks["mns"].append(mn)
-
-        with h5py.File(storm_summary_path, "r") as storm_summary :
-            all_tracks["f_Ks"].append(storm_summary.attrs["f_K"])
-            frots_rel = np.array(storm_summary["frots_rel"])
-            if not len(frots_rel_to_include) == 0 :
-                # Get indices that are in the frots_rel_to_include
-                I = [frot in frots_rel_to_include for frot in frots_rel]
-            else :
-                I = [True]*len(frots_rel) # Get all the indices
-            for k, (l, m, n_pg) in enumerate(zip(ls_track, ms_track, n_pgs_track)) :
-                try :
-                    reliable = bool(storm_summary["track_reliable"][(np.array(storm_summary['ls'])==l) & \
-                                                                    (np.array(storm_summary['n_pgs'])==n_pg) & \
-                                                                    (np.array(storm_summary["ms"])==m)])
-                    all_tracks["track_reliable"][k].append(reliable)
-                    if reliable :
-                        all_tracks["freqs"][k].append(storm_summary["freqs_deformed"][(np.array(storm_summary['ls'])==l) & \
-                                                                                      (np.array(storm_summary['n_pgs'])==n_pg) & \
-                                                                                      (np.array(storm_summary["ms"])==m)][0][I])
-                    else :
-                        all_tracks["freqs"][k].append([np.nan for j in range(np.sum(I))])
-                except :
-                    all_tracks["freqs"][k].append([np.nan for j in range(np.sum(I))])
-                    all_tracks["track_reliable"][k].append(False)
-
+    all_tracks = {"ages":np.empty(M), "mns":np.empty(M),
+                  "log_Teffs":np.empty(M), "log_Ls":np.empty(M),
+                  "Xcs":np.empty(M), "Xc_saves":np.empty(M),
+                  "Xc_min":Xc_min, "Xc_max":Xc_max,
+                  "MESA_model_dir":MESA_model_dir,
+                  "histfile":history_file,
+                  "ms":np.array(ms_track),
+                  "ls":np.array(ls_track),
+                  "n_pgs":np.array(n_pgs_track),
+                  "freqs":np.empty((K,F,M)),
+                  "track_reliable":np.empty((K,M)),
+                  "f_Ks":np.empty(M),
+                  "frots_rel":frots_rel}
     if add_beta :
-        import pygyre as pyg
+        all_tracks["betas"] = np.empty((K,M))
 
-        betas_all = [[] for i in range(K)]
-        gyre_output_dir = f"{MESA_model_dir}/gyre_summaries/"
-        for Xc_save, mn in zip(all_tracks["Xc_saves"], all_tracks["mns"]) :
-            gyre_model_path = f"{gyre_output_dir}/gyre_Xc{Xc_save:.5f}_mn{mn}.HDF".format(Xc_save=Xc_save, mn=mn)
-            if not os.path.isfile(gyre_model_path) :
-                for i in range(K) :
-                    betas_all[i].append(np.nan)
-                print("Missing GYRE file : ", gyre_model_path)
-                continue
-            gyre_output = pyg.read_output(gyre_model_path)
+    worker = partial(
+        process_summary_file,
+        MESA_model_dir=MESA_model_dir,
+        ls_track=ls_track,
+        ms_track=ms_track,
+        n_pgs_track=n_pgs_track,
+        frots_rel_to_include=frots_rel_to_include,
+        mn_lookup=mn_lookup,
+        add_beta=add_beta,
+    )
+    with ProcessPoolExecutor() as executor:
+        results = list(executor.map(worker, storm_summary_paths))
 
-            for i, (l, n_pg) in enumerate(zip(ls_track, n_pgs_track)) :
-                if l==1 and n_pg==0 :
-                    betas_all[i].append(np.nan)
-                    continue
-                if l == 0 :
-                    betas_all[i].append(np.nan)
-                    continue
-                if n_pg >= 4 :
-                    betas_all[i].append(1.0)
-                    continue
-                beta_data = np.real(gyre_output[(gyre_output['l']==l) & \
-                                    (gyre_output['n_pg']==n_pg)]['beta']).data
-                if len(beta_data) == 1 :
-                    betas_all[i].append(beta_data[0])
-                else :
-                    betas_all[i].append(np.nan)
+    for j, result in enumerate(results):
+        all_tracks["ages"][j] = result["age"]
+        all_tracks["mns"][j] = result["mn"]
+        all_tracks["log_Teffs"][j] = result["log_Teff"]
+        all_tracks["log_Ls"][j] = result["log_L"]
+        all_tracks["Xcs"][j] = result["Xc"]
+        all_tracks["Xc_saves"][j] = result["Xc_save"]
+        all_tracks["freqs"][:, :, j] = result["freqs"]
+        all_tracks["track_reliable"][:, j] = result["track_reliable"]
+        all_tracks["f_Ks"][j] = result["f_K"]
+        if add_beta :
+            all_tracks["betas"][:,j] = result["betas"]
 
+    # for j,storm_summary_path in enumerate(storm_summary_paths) :
     # Turn all time independent lists into Numpy arrays and sort by age
     I_sort = np.argsort(all_tracks["ages"])
-    all_tracks["ages"] = np.array(all_tracks["ages"])[I_sort]
-    all_tracks["Xcs"] = np.array(all_tracks["Xcs"])[I_sort]
-    all_tracks["Xc_saves"] = np.array(all_tracks["Xc_saves"])[I_sort]
-    all_tracks["mns"] = np.array(all_tracks["mns"])[I_sort]
-    all_tracks["f_Ks"] = np.array(all_tracks["f_Ks"])[I_sort]
-    for k in range(K) :
-        all_tracks["freqs"][k] = np.array(all_tracks["freqs"][k])[I_sort]
-        all_tracks["track_reliable"][k] = np.array(all_tracks["track_reliable"][k])[I_sort]
-    all_tracks["freqs"] = np.array(all_tracks["freqs"])
-    all_tracks["track_reliable"] = np.array(all_tracks["track_reliable"])
+    all_tracks["ages"] = all_tracks["ages"][I_sort]
+    all_tracks["Xcs"] = all_tracks["Xcs"][I_sort]
+    all_tracks["Xc_saves"] = all_tracks["Xc_saves"][I_sort]
+    all_tracks["mns"] = all_tracks["mns"][I_sort]
+    all_tracks["log_Teffs"] = all_tracks["log_Teffs"][I_sort]
+    all_tracks["log_Ls"] = all_tracks["log_Ls"][I_sort]
+    all_tracks["f_Ks"] = all_tracks["f_Ks"][I_sort]
+    all_tracks["freqs"][:,:] = all_tracks["freqs"][:,:,I_sort]
+    all_tracks["track_reliable"][:] = all_tracks["track_reliable"][:,I_sort]
     if add_beta :
-        for k in range(K) :
-            all_tracks["betas"][k] = np.array(betas_all[k])[I_sort]
+        all_tracks["betas"][:] = all_tracks["betas"][:,I_sort]
 
     return all_tracks
 
