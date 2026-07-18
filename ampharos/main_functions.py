@@ -4,6 +4,7 @@ from .support_functions import initialise_grid, find_age_cross_zonal_mode, \
                               is_model_compatible_with_spectroscopy, \
                               number_observations, standardised_chi2, \
                               interpolate_history_columns_in_age, \
+                              interpolate_model_in_frot_with_GYRE, \
                               does_track_cross_HRD_error_ellipse
 from .io_functions import write_results, create_observation_dict
 from .visualisation import *
