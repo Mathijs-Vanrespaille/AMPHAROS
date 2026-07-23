@@ -265,7 +265,7 @@ def find_age_cross_and_frot(grid, observation, results, n_pg_main,
         the StORM grid.
 
     """
-    N = len(all_tracks)
+    N = len(grid["Zinis"])
     results["ages_cross"] = np.empty(N)
     results["Xcs_cross"] = np.empty(N)
     results["frots_best"] = np.empty(N)
@@ -641,6 +641,9 @@ def add_history_results(grid, results) :
                 The base-10 logarithm of the luminosity in solar luminosities of
                 each optimal model
                 Length of this list equals N
+            "Ms": numpy.array of floats
+                The current stellar mass in solar masses of each optimal model
+                Length of this list equals N
             "Ms_cc": numpy.array of floats
                 The convective core mass in solar masses of each optimal model
                 Length of this list equals N
@@ -656,28 +659,34 @@ def add_history_results(grid, results) :
                 The asteroseismic Pi_0 in seconds of each optimal model
                 Length of this list equals N
         with N the number of evolutionary track in the grid
-
     """
-    results["log_Teffs"], results["log_Ls"] = [], []
-    results["Ms_cc"], results["log_Rs"] = [], []
-    results["log_gs"], results["Pi0s"] = [], []
+    N = len(grid["Zinis"])
+    log_Teffs, log_Ls, Ms = np.empty(N), np.empty(N), np.empty(N)
+    Ms_cc, log_Rs, log_gs, Pi0s = np.empty(N), np.empty(N), np.empty(N), np.empty(N)
 
-    for tracks, age_cross, model in zip(grid["all_tracks"],
-                                        results["ages_cross"],
-                                        results["models"]) :
+    for i,(tracks,age_cross,model) in enumerate(zip(grid["all_tracks"],
+                                                    results["ages_cross"],
+                                                    results["models"])) :
         # Bring these up to the results level for easier access
-        results["log_Teffs"].append(model["log_Teff"])
-        results["log_Ls"].append(model["log_L"])
+        log_Teffs[i] = model["log_Teff"]
+        log_Ls[i] = model["log_L"]
+        Ms[i] = model["M"]
 
         interp_cols = interpolate_history_columns_in_age(tracks, age_cross,
                                                          ["mass_conv_core", "log_R", "log_g", "Asymptotic_dP"])
         M_cc, log_R, log_g, Pi0 = interp_cols
-        results["Ms_cc"].append(M_cc)
-        results["log_Rs"].append(log_R)
-        results["log_gs"].append(log_g)
-        results["Pi0s"].append(Pi0)
-    for key in ("log_Teffs", "log_Ls", "Ms_cc", "log_Rs", "log_gs", "Pi0s") :
-        results[key] = np.array(results[key])
+        Ms_cc[i] = M_cc
+        log_Rs[i] = log_R
+        log_gs[i] = log_g
+        Pi0s[i] = Pi0
+
+    results["log_Teffs"] = log_Teffs
+    results["log_Ls"] = log_Ls
+    results["Ms"] = Ms
+    results["Ms_cc"] = Ms_cc
+    results["log_Rs"] = log_Rs
+    results["log_gs"] = log_gs
+    results["Pi0s"] = Pi0s
 
 
 def make_all_the_plots(grid, observation, all_results, save_dir="plots",
@@ -900,9 +909,13 @@ def make_statistical_model(grid, results) :
     --------- Returns ---------
 
     statistical_model: dict containing
-        "M_mean": float
+        "Z_mean": float
+            Statistical estimate for initial metallicity
+        "Z_std": float
+            Uncertainty on statistical initial metallicity
+        "Mini_mean": float
             Statistical estimate for initial mass in solar masses
-        "M_std": float
+        "Mini_std": float
             Uncertainty on statistical initial mass estimate in solar masses
         "logD_mean": float
             Statistical estimate for base-10 logarithm of the mixing strength at
@@ -946,6 +959,12 @@ def make_statistical_model(grid, results) :
         "fK_std": float
             Uncertainty on statistical Keplerian critical rotation frequency in
             cycles per day
+        "vrot_mean": float
+            Statistical estimate for surface rotation speed in kilometers per
+            second
+        "vrot_std": float
+            Uncertainty on statistical estimate for surface rotation speed in 
+            kilometers per second
         "log_Teff_mean": float
             Statistical estimate for base-10 logarithm of effective temperature
             in kelvin
@@ -962,6 +981,10 @@ def make_statistical_model(grid, results) :
             Statistical estimate for stellar radius in solar radii
         "R_std": float
             Uncertainty on statistical stellar radius estimate in solar radii
+        "M_mean": float
+            Statistical estimate for current mass in solar masses
+        "M_std": float
+            Uncertainty on statistical current mass estimate in solar masses
         "log_R_mean": float
             Statistical estimate for base-10 logarithm of stellar radius in
             solar radii
@@ -992,29 +1015,32 @@ def make_statistical_model(grid, results) :
     """
     assert "in_statistical_model" in results.keys()
 
+    Rsun = 6.957e5 # in km
+    day = 86400 # in s
+
     # Find the useable models
     toInclude = (results["in_statistical_model"]) & \
                 (~np.isnan(results["chi2s"]))
 
     # Grabbing all necessary data of the models within our considered range
-    # From grid: M, logD, fov (I wanted to include Z, but that has no steps at
-    # the moment and thus breaks the uncertainty estimate)
+    # From grid: Z, Mini, logD, fov
     # From results: age, Xc, frot_best, Mcc, Mcc_over_M, Pi0
     # Collect these quantities and their names in two lists to automate some
     # computations below
-    columns = np.array([grid["Ms"], grid["logDs"], grid["fovs"],
+    columns = np.array([grid["Zinis"], grid["Minis"], grid["logDs"], grid["fovs"],
                         results["ages_cross"], np.log10(results["ages_cross"]),
                         results["Xcs_cross"], results["frots_best"],
                         results["frots_rel_best"],
                         results["frots_best"]/results["frots_rel_best"],
-                        results["log_Teffs"], results["log_Ls"],
+                        2*np.pi*results["frots_best"]/day*10**results["log_Rs"]*Rsun,
+                        results["log_Teffs"], results["log_Ls"], results["Ms"], 
                         10**results["log_Rs"], results["log_Rs"],
                         results["log_gs"], results["Ms_cc"],
-                        results["Ms_cc"]/grid["Ms"], results["Pi0s"]])
+                        results["Ms_cc"]/results["Ms"], results["Pi0s"]])
     columns = np.array(columns)[:,toInclude]
-    names = ["M", "logD", "fov", "age", "log_age", "Xc", "frot", "frot_rel",
-             "fK", "log_Teff", "log_L", "R", "log_R", "log_g", "Mcc",
-             "Mcc_over_M", "Pi0"]
+    names = ["Z", "Mini", "logD", "fov", "age", "log_age", "Xc", "frot", 
+             "frot_rel", "fK", "vrot", "log_Teff", "log_L", "M", "R", "log_R", 
+             "log_g", "Mcc", "Mcc_over_M", "Pi0"]
 
     assert len(columns) == len(names)
 

@@ -137,6 +137,9 @@ def create_observation_dict(row, sort_by_l, sort_by_freq) :
         "n_pg_main": int or np.nan
             Radial order of the main, fixed mode if known. np.nan if unknown
     """
+    # I immediately start gathering data in the dictionary. This is technically
+    # inefficient, but since this bit of the code runs in the blink of an eye
+    # anyway, I don't really care and I can't be bothered recoding all of this. 
     observation={"name":row["name"], "save_suffix":row["save_suffix"],
                  "log_Teff":row["log_Teff"], "log_Teff_err":row["log_Teff_err"],
                  "log_L":row["log_L"], "log_L_err":row["log_L_err"],
@@ -252,10 +255,11 @@ def process_summary_file(storm_summary_path, MESA_model_dir,
             # Get indices that are in the frots_rel_to_include
             I = np.isin(frots_rel, frots_rel_to_include)
         else :
-            I = [True]*len(frots_rel) # Get all the indices
-
+            # Get all the indices
+            I = np.full(len(frots_rel), True, dtype=bool) 
 
         reliables = np.empty(len(ls_track))
+        # freqs has the shape (K x F)
         freqs = np.empty((len(ls_track), np.sum(I)))
         for k, (l, m, n_pg) in enumerate(zip(ls_track, ms_track, n_pgs_track)) :
             #index in storm summary
@@ -285,19 +289,17 @@ def process_summary_file(storm_summary_path, MESA_model_dir,
         for k, (l, n_pg) in enumerate(zip(ls_track, n_pgs_track)) :
             if l==1 and n_pg==0 :
                 betas[k] = np.nan
-                continue
-            if l == 0 :
+            elif l == 0 :
                 betas[k] = np.nan
-                continue
-            if n_pg >= 4 :
+            elif n_pg >= 4 :
                 betas[k] = 1.0
-                continue
-            beta_data = np.real(gyre_output[(gyre_output['l']==l) & \
-                                (gyre_output['n_pg']==n_pg)]['beta']).data
-            if len(beta_data) == 1 :
-                betas[k] = beta_data[0]
             else :
-                betas[k] = np.nan
+                beta_data = np.real(gyre_output[(gyre_output['l']==l) & \
+                                    (gyre_output['n_pg']==n_pg)]['beta']).data
+                if len(beta_data) == 1 :
+                    betas[k] = beta_data[0]
+                else :
+                    betas[k] = np.nan
 
     results = {"age": age, "mn": mn, "Xc": Xc, "Xc_save": Xc_save, "f_K": f_K,
                "freqs": freqs, "track_reliable": reliable,
@@ -435,7 +437,7 @@ def read_MESA_history_columns(history_file, column_names, Xc_min=None,
 def read_model_parameters(parameter_file, header=True, delimiter=",") :
     """
     Read the file describing the parameters used in all the MESA models,
-    specifically the initial metallicities Z, initial masses M, overshooting
+    specifically the initial metallicities Z, initial masses Mini, overshooting
     parameters fov and logarithm of the mixing strength at the base of the
     envelope logD. The rotation rates are read in elsewhere from the StORM
     summaries. Note that the parameter grid need not be rectangular.
@@ -449,16 +451,16 @@ def read_model_parameters(parameter_file, header=True, delimiter=",") :
         files.
     header: bool
         Whether this file has a header. If not, the order of the parameters is
-        assumed to be Z, M, logD, fov.
+        assumed to be Zini, Mini, logD, fov.
         Defaults to True
     delimiter: string
         The character(s) used to separate the values in the file.
         Defaults to ","
 
     ------- Returns -------
-    Zs: numpy.array of floats
+    Zinis: numpy.array of floats
         Initial metallicity of each MESA-GYRE run
-    Ms: numpy.array of floats
+    Minis: numpy.array of floats
         Initial mass in solar masses of each MESA-GYRE run
     logDs: numpy.array of floats
         Base 10 logarithm of the mixing strength at the base of the radiative
@@ -501,13 +503,13 @@ def read_model_parameters(parameter_file, header=True, delimiter=",") :
                            "'logD', 'log_D', 'logDmix', 'log_Dmix' or " \
                            "'log_D_mix' as expected.")
     else :
-        Zs, Ms, logDs, fovs = np.loadtxt(parameter_file, unpack=True,
-                                         delimiter=delimiter)
-    return Zs, Ms, logDs, fovs
+        Zinis, Minis, logDs, fovs = np.loadtxt(parameter_file, unpack=True,
+                                               delimiter=delimiter)
+    return Zinis, Minis, logDs, fovs
 
 
-def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
-                      Xc_min=None, Xc_max=None,
+def read_storm_tracks(MESA_output_dir, Zini, Mini, logD, fov, 
+                      frots_rel_to_include=[], Xc_min=None, Xc_max=None,
                       ls=[0,0,0,1,1,1,1,1,1,1,2,2,2,2,2,2,2],
                       n_pgs=[1,2,3,-3,-2,-1,0,1,2,3,-3,-2,-1,0,1,2,3],
                       add_beta=False) :
@@ -523,9 +525,9 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
     MESA_output_dir: string
         The full or relative path to the top folder containing all the output of
         MESA and StORM.
-    Z: float
+    Zini: float
         The initial metallicity of the MESA run to be read in.
-    M: float
+    Mini: float
         The initial mass of the MESA run to be read in.
     logD: float
         The mixing strength at the base of the envelope of the MESA run to be
@@ -639,7 +641,7 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
             ms_track.append(m)
             n_pgs_track.append(n_pg)
 
-    folder = "Z{Z:.3f}_M{M:.2f}_logD{logD:.1f}_fov{fov:.3f}".format(Z=Z,M=M,logD=logD,fov=fov)
+    folder = "Z{Z:.3f}_M{M:.2f}_logD{logD:.1f}_fov{fov:.3f}".format(Z=Zini,M=Mini,logD=logD,fov=fov)
     MESA_model_dir = "{MESA_output_dir}/{folder}/".format(MESA_output_dir=MESA_output_dir,folder=folder)
     history_file = "{MESA_model_dir}/{folder}.hist".format(MESA_model_dir=MESA_model_dir,folder=folder)
     mn_hist,Xc_hist,age_hist,log_Teff_hist,log_L_hist = read_MESA_history_columns(history_file,
@@ -683,7 +685,7 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
                   "ms":np.array(ms_track),
                   "ls":np.array(ls_track),
                   "n_pgs":np.array(n_pgs_track),
-                  "freqs":np.empty((K,M,F)),
+                  "freqs":np.empty((K,F,M)),
                   "track_reliable":np.empty((K,M)),
                   "f_Ks":np.empty(M),
                   "frots_rel":frots_rel}
@@ -710,8 +712,8 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
         all_tracks["log_Ls"][j] = result["log_L"]
         all_tracks["Xcs"][j] = result["Xc"]
         all_tracks["Xc_saves"][j] = result["Xc_save"]
-        all_tracks["freqs"][:, :, j] = result["freqs"]
-        all_tracks["track_reliable"][:, j] = result["track_reliable"]
+        all_tracks["freqs"][:,:,j] = result["freqs"]
+        all_tracks["track_reliable"][:,j] = result["track_reliable"]
         all_tracks["f_Ks"][j] = result["f_K"]
         if add_beta :
             all_tracks["betas"][:,j] = result["betas"]
@@ -765,7 +767,7 @@ def read_model_number_and_Xc_save(storm_summary_path) :
 
 def write_model(model, save_name, save_dir,
                 attrs=["n_pg_main", "age", "Xc", "frot_best", "Xc_min",
-                       "Xc_max", "log_Teff", "log_L", "MESA_model_dir",
+                       "Xc_max", "log_Teff", "log_L", "M", "MESA_model_dir",
                        "histfile"],
                 dsets=["ls", "ms", "n_pgs", "freqs"]) :
     """
@@ -789,7 +791,7 @@ def write_model(model, save_name, save_dir,
         The keys in the model dictionary to be writen out as attributes. Each
         key must be in model and contain a single value.
         Defaults to ["n_pg_main", "age", "Xc", "frot_best", "Xc_min", "Xc_max",
-                     "log_Teff", "log_L", "MESA_model_dir", "histifle"]
+                     "log_Teff", "log_L", "M", "MESA_model_dir", "histifle"]
     dsets: list of string
         The keys in the model dictionary to be writen out as datasets. Each key
         must be in model and contain a list of value.
@@ -878,31 +880,32 @@ def write_results_summary(grid, results, save_name, save_dir,
         Whether to not include rotational splitting terms in the chi2 sum
         Defaults to False
     """
-    G = 6.67e-11
-    Msol = 1.989e30
-    Rsol = 6.957e8
+    G = 6.67e-11 # in SI
+    Msol = 1.989e30 # in kg
+    Rsol = 6.957e8 # in m
+    day = 86400 # in s
     models = results["models"]
-    header = "chi2,chi2_reduced,spectro_compatible,Z,M,logD,fov,Xc,age," \
-             "log_age,frot,frot_rel,fK,log_Teff,log_L,R,log_R,log_g,Mcc," \
+    header = "chi2,chi2_reduced,spectro_compatible,Z,Mini,logD,fov,Xc,age," \
+             "log_age,frot,frot_rel,fK,log_Teff,log_L,M,R,log_R,log_g,Mcc," \
              "Mcc_over_M,Pi0"
     arrays = [results["chi2s"], results["chi2s_reduced"],
-              results["spectro_compatible"], grid["Zs"], grid["Ms"],
+              results["spectro_compatible"], grid["Zinis"], grid["Minis"],
               grid["logDs"], grid["fovs"], results["Xcs_cross"],
               results["ages_cross"], results["frots_best"], results["log_Rs"],
               results["log_gs"], results["Ms_cc"], results["Pi0s"]]
     if exclude_splitting_from_chi2 :
         header += ",chi2_withSplitting,chi2_withSplitting_reduced"
     all_lines = [header]
-    for i,(chi2,chi2_reduced,spectro_compatible,Z,M,logD,fov,Xc,age,frot,log_R,log_g,Mcc,Pi0) in \
+    for i,(chi2,chi2_reduced,spectro_compatible,Zini,Mini,logD,fov,Xc,age,frot,log_R,log_g,Mcc,Pi0) in \
         enumerate(np.array(arrays).T) :
         model = models[i]
-        log_Teff, log_L = model["log_Teff"], model["log_L"]
+        log_Teff, log_L, M = model["log_Teff"], model["log_L"], model["M"]
         R = 10**log_R
-        f_K = np.sqrt(G*M*Msol/(R*Rsol)**3) * 86400
-        new_line = f"{chi2},{chi2_reduced},{spectro_compatible},{Z},{M}," \
+        f_K = np.sqrt(G*M*Msol/(R*Rsol)**3) * day
+        new_line = f"{chi2},{chi2_reduced},{spectro_compatible},{Zini},{Mini}," \
                    f"{logD},{fov},{Xc},{age},{np.log10(age)},{frot}," \
-                   f"{frot/f_K},{f_K},{log_Teff},{log_L},{R},{log_R},{log_g}," \
-                   f"{Mcc},{Mcc/M},{Pi0}"
+                   f"{frot/f_K},{f_K},{log_Teff},{log_L},{M},{R},{log_R}," \
+                   f"{log_g},{Mcc},{Mcc/M},{Pi0}"
         if exclude_splitting_from_chi2 :
             new_line += f",{results['chi2_withSplitting'][i]}," \
                         f"{results['chi2_withSplitting_reduced'][i]}"

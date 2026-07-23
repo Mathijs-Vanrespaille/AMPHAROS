@@ -1,12 +1,9 @@
 import numpy as np
-import glob
-import os
 import scipy.interpolate as scint
 import sys
 
 from .io_functions import read_model_parameters, read_storm_tracks, \
-                         read_MESA_history_columns, \
-                         read_model_number_and_Xc_save
+                          read_MESA_history_columns
 
 
 ##### MISCELLANEOUS ############################################################
@@ -59,8 +56,8 @@ def initialise_grid(MESA_output_dir, parameter_file, frots_rel_to_include=[],
         Path to the top level directory holding the MESA and GYRE output
     parameter_file: string
         Path to the file containing all combinations of the varied model
-        parameters Z, M, logD, fov; i.e. the different parameters fed to MESA,
-        without affecting the StORM analysis.
+        parameters Zini, Mini, logD, fov; i.e. the different parameters fed to 
+        MESA, without affecting the StORM analysis.
     frots_rel_to_include: list of floats
         The rotation rates relative to the Keplerian critical rotation rate to
         be included. If left empty, all the rotation rates provided in the StORM
@@ -80,8 +77,8 @@ def initialise_grid(MESA_output_dir, parameter_file, frots_rel_to_include=[],
         Defaults to None
     header: bool
         Whether the parameter file has a header describing each column. If not,
-        the file is assumed to have only four columns in the order Z, M, logD,
-        fov
+        the file is assumed to have only four columns in the order Zini, Mini, 
+        logD, fov
         Defaults to True
     delimiter: string
         The character(s) used to separate the values in the parameter file.
@@ -95,9 +92,9 @@ def initialise_grid(MESA_output_dir, parameter_file, frots_rel_to_include=[],
     grid: dict containing
         "MESA_output_dir": string
             Path to the top level directory holding the MESA and StORM output
-        "Zs": numpy.array of floats
+        "Zinis": numpy.array of floats
             Initial metallicity of each MESA-StORM run
-        "Ms": numpy.array of floats
+        "Minis": numpy.array of floats
             Initial mass in solar masses of each MESA-StORM run
         "logDs": numpy.array of floats
             Base 10 logarithm of the mixing strength at the base of the
@@ -118,15 +115,17 @@ def initialise_grid(MESA_output_dir, parameter_file, frots_rel_to_include=[],
 
     """
     assert len(ls_to_include) == len(n_pgs_to_include)
-    Zs, Ms, logDs, fovs = read_model_parameters(parameter_file, header=header,
-                                                delimiter=delimiter)
-    grid = {"Zs":Zs, "Ms":Ms, "logDs":logDs, "fovs":fovs,
+    Zinis, Minis, logDs, fovs = read_model_parameters(parameter_file, 
+                                                      header=header,
+                                                      delimiter=delimiter)
+    grid = {"Zinis":Zinis, "Minis":Minis, "logDs":logDs, "fovs":fovs,
             "frots_rel":frots_rel_to_include, "all_tracks":[],
             "MESA_output_dir":MESA_output_dir}
-    N = len(Zs)
-    for i, (Z, M, logD, fov) in enumerate(zip(Zs, Ms, logDs, fovs)) :
-        grid["all_tracks"].append(read_storm_tracks(MESA_output_dir, Z, M, logD,
-                                                    fov, frots_rel_to_include,
+    N = len(Zinis)
+    for i,(Zini,Mini,logD,fov) in enumerate(zip(Zinis,Minis,logDs,fovs)) :
+        grid["all_tracks"].append(read_storm_tracks(MESA_output_dir, Zini, Mini, 
+                                                    logD, fov, 
+                                                    frots_rel_to_include,
                                                     Xc_min, Xc_max,
                                                     ls=ls_to_include,
                                                     n_pgs=n_pgs_to_include,
@@ -204,9 +203,8 @@ def get_frequency_track(tracks, l, m, n_pg, frot_rel=0.00) :
         choice = -1
     else :
         choice = 0
-    return tracks["freqs"][(tracks["ls"]==l) & (tracks["ms"]==m) & \
-                           (tracks["n_pgs"]==n_pg), :, \
-                           (tracks["frots_rel"]==frot_rel)][choice]
+    return tracks["freqs"][tracks["ID_lookup"][(l,m,n_pg)], \
+                           tracks["frot_lookup"][frot_rel], :][choice]
 
 
 def get_mode_frequency_model(model, l, m, n_pg) :
@@ -234,8 +232,7 @@ def get_mode_frequency_model(model, l, m, n_pg) :
         available
     """
     try :
-        return model["freqs"][(model["ls"]==l) & (model["n_pgs"]==n_pg) &
-                              (model["ms"]==m)][0]
+        return model["freqs"][model["ID_lookup"][(l,m,n_pg)]][0]
     except IndexError :
         return np.nan
 
@@ -270,7 +267,6 @@ def get_mode_splitting_model(model, l, m, n_pg) :
     if np.isnan(freq) or np.isnan(freq_m0) :
         return np.nan
     return abs(freq - freq_m0)
-
 
 
 ##### INTERPOLATION ############################################################
@@ -454,10 +450,10 @@ def interpolate_history_columns_in_age(tracks, age, column_names) :
                                         Xc_min=tracks["Xc_min"],
                                         Xc_max=tracks["Xc_max"], flip=False)
     history_age = columns[-1]
-    interpolated_columns = []
-    for column in columns[:-1] :
+    interpolated_columns = np.empty(len(column_names))
+    for i,column in enumerate(columns[:-1]) :
         spline = scint.CubicSpline(history_age, column, extrapolate=False)
-        interpolated_columns.append(spline(age))
+        interpolated_columns[i] = spline(age)
     return interpolated_columns
 
 
@@ -519,6 +515,8 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
         "log_L": float
             Base 10 logarithm of the luminosity of the MESA model, interpolated
             to Xc
+        "M": float
+            Stellar mass in solar masses. *Not* the initial stellar mass. 
         "MESA_model_dir": string
             Path to the directory containing the output of this particular MESA
             run
@@ -530,15 +528,15 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
     model_best_frot = {}
     # Copy over the basics that should remain constant with the non-rotating model
     for key in ["Xc_min", "Xc_max", "MESA_model_dir", "histfile", "age", "Xc",
-                "log_Teff", "log_L", "ls", "ms", "n_pgs", "betas"] :
+                "log_Teff", "log_L", "M", "ls", "ms", "n_pgs", "betas"] :
         model_best_frot[key] = model_nonRot[key]
 
     if np.isnan(model_nonRot["freqs"]).all() :
         # No workable solutions. Set everything to nan and send it out the door.
         model_best_frot["frot_best"], model_best_frot["frot_rel_best"] = np.nan, np.nan
         model_best_frot["age"], model_best_frot["Xc"] = np.nan, np.nan
-        model_best_frot["log_Teff"], model_best_frot["log_L"] = np.nan, np.nan
-        model_best_frot["freqs"] = np.array([np.nan]*len(model_best_frot["ls"]))
+        model_best_frot["log_Teff"], model_best_frot["log_L"], model_best_frot["M"] = np.nan, np.nan, np.nan
+        model_best_frot["freqs"] = np.full(len(model_best_frot["ls"]), np.nan)
         return model_best_frot
 
     assert model_nonRot["frot"] == 0.0
@@ -577,8 +575,8 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
             # No workable solutions. Set everything to nan and send it out the door.
             model_best_frot["frot_best"], model_best_frot["frot_rel_best"] = np.nan, np.nan
             model_best_frot["age"], model_best_frot["Xc"] = np.nan, np.nan
-            model_best_frot["log_Teff"], model_best_frot["log_L"] = np.nan, np.nan
-            model_best_frot["freqs"] = np.array([np.nan]*len(model_best_frot["ls"]))
+            model_best_frot["log_Teff"], model_best_frot["log_L"], model_best_frot["M"] = np.nan, np.nan, np.nan
+            model_best_frot["freqs"] = np.full(len(model_best_frot["ls"]), np.nan)
             return model_best_frot
 
         try :
@@ -611,14 +609,12 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
     model_best_frot["frot_best"] = frot_best
     model_best_frot["frot_rel_best"] = frot_best / model_nonRot["f_K"]
 
-    # Compute all the predicted non-zonal modes in the model
+    # Compute all the predicted modes in the model with first order 
+    # rotationally-induced frequency shift
     freqs = model_nonRot["freqs"]
-    for i, (freq, l, m, beta) in enumerate(zip(freqs, model_nonRot["ls"],
-                                               model_nonRot["ms"],
-                                               model_nonRot["betas"])) :
-        if not l == 0 :
-            freqs[i] = freq + m*beta*frot_best
-    model_best_frot["freqs"] = np.array(freqs)
+    ms = model_nonRot["ms"]
+    betas = model_nonRot["betas"]
+    model_best_frot["freqs"] = freqs + ms*betas*frot_best
 
     return model_best_frot
 
@@ -679,6 +675,8 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
         "log_L": float
             Base 10 logarithm of the luminosity of the MESA model, interpolated
             to Xc
+        "M": float
+            Stellar mass in solar masses. *Not* the initial stellar mass. 
         "MESA_model_dir": string
             Path to the directory containing the output of this particular MESA
             run
@@ -694,46 +692,52 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
 
     # Extract the quantities to interpolate from all the models:
     #   age, Xc, Teff, L, all the frequencies. And frot & frot_rel of course!
-    ages,Xcs,log_Teffs,log_Ls,all_freqs,frots,frots_rel = [],[],[],[],[],[],[]
-    for model in models :
-        ages.append(model["age"])
-        Xcs.append(model["Xc"])
-        log_Teffs.append(model["log_Teff"])
-        log_Ls.append(model["log_L"])
-        all_freqs.append(model["freqs"])
-        frots.append(model["frot"])
-        frots_rel.append(model["frot_rel"])
-
+    F = len(models)
+    ages, Xcs = np.empty(F), np.empty(F)
+    log_Teffs, log_Ls, Ms = np.empty(F), np.empty(F), np.empty(F)
+    frots, frots_rel = np.empty(F), np.empty(F)
+    all_freqs = np.empty(len(models[0]["freqs"]),F)
+    for j, model in enumerate(models) :
+        ages[j] = model["age"]
+        Xcs[j] = model["Xc"]
+        log_Teffs[j] = model["log_Teff"]
+        log_Ls[j] = model["log_L"]
+        Ms[j] = model["M"]
+        all_freqs[:,j] = model["freqs"]
+        frots[j] = model["frot"]
+        frots_rel[j] = model["frot_rel"]
 
     # Remove outliers in Xc! Outlier = 3sigma away from the median Xc
     Xc_median = np.median(Xcs)
     Xc_std = np.std(Xcs)
     toKeep = np.where(abs(Xcs - Xc_median)/Xc_std < 3.)[0]
-    ages = np.array(ages)[toKeep]
-    Xcs = np.array(Xcs)[toKeep]
-    log_Teffs = np.array(log_Teffs)[toKeep]
-    log_Ls = np.array(log_Ls)[toKeep]
-    all_freqs = np.array(all_freqs)[toKeep]
-    frots = np.array(frots)[toKeep]
-    frots_rel = np.array(frots_rel)[toKeep]
+    ages = ages[toKeep]
+    Xcs = Xcs[toKeep]
+    log_Teffs = log_Teffs[toKeep]
+    log_Ls = log_Ls[toKeep]
+    Ms = Ms[toKeep]
+    all_freqs = all_freqs[:,toKeep]
+    frots = frots[toKeep]
+    frots_rel = frots_rel[toKeep]
 
     # Sort by frot for interpolation
     I = np.argsort(frots)
-    ages = np.array(ages)[I]
-    Xcs = np.array(Xcs)[I]
-    log_Teffs = np.array(log_Teffs)[I]
-    log_Ls = np.array(log_Ls)[I]
-    all_freqs = np.array(all_freqs)[I]
-    frots = np.array(frots)[I]
-    frots_rel = np.array(frots_rel)[I]
+    ages = ages[I]
+    Xcs = Xcs[I]
+    log_Teffs = log_Teffs[I]
+    log_Ls = log_Ls[I]
+    Ms = Ms[I]
+    all_freqs = all_freqs[:,I]
+    frots = frots[I]
+    frots_rel = frots_rel[I]
 
     # Find the rotation producing the smallest chi2 in splitting around the
     # selected zonal frequency.
-    chi2s = np.zeros(len(frots))
-    chi2s_left = np.zeros(len(frots))
-    chi2s_right = np.zeros(len(frots))
-    splittings_left = np.zeros(len(frots))
-    splittings_right = np.zeros(len(frots))
+    chi2s = np.zeros(F)
+    chi2s_left = np.zeros(F)
+    chi2s_right = np.zeros(F)
+    splittings_left = np.zeros(F)
+    splittings_right = np.zeros(F)
     for k in range(observation["N_m"]) :
         l = observation["ls"][k]
         observation_freq_m0 = observation["freqs"][k]
@@ -782,8 +786,8 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
         # No workable solutions. Set everything to nan and send it out the door.
         model_best_frot["frot_best"], model_best_frot["frot_rel_best"] = np.nan, np.nan
         model_best_frot["age"], model_best_frot["Xc"] = np.nan, np.nan
-        model_best_frot["log_Teff"], model_best_frot["log_L"] = np.nan, np.nan
-        model_best_frot["freqs"] = np.array([np.nan]*len(model_best_frot["ls"]))
+        model_best_frot["log_Teff"], model_best_frot["log_L"], model_best_frot["M"] = np.nan, np.nan, np.nan
+        model_best_frot["freqs"] = np.full(len(model_best_frot["ls"]), np.nan)
         return model_best_frot
 
     # Look for where the minimum roughly is
@@ -803,27 +807,28 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
     # Add frot and frot_rel (scaled by the last values) to the model dictionary
     model_best_frot["frot_best"] = frot_best
     model_best_frot["frot_rel_best"] = frot_best * frots_rel[-1]/frots[-1]
-
     model_best_frot["age"] = np.interp(frot_best, frots[toKeep], ages[toKeep])
     model_best_frot["Xc"] = np.interp(frot_best, frots[toKeep], Xcs[toKeep])
     model_best_frot["log_Teff"] = np.interp(frot_best, frots[toKeep],
                                             log_Teffs[toKeep])
     model_best_frot["log_L"] = np.interp(frot_best, frots[toKeep],
                                          log_Ls[toKeep])
+    model_best_frot["M"] = np.interp(frot_best, frots[toKeep], Ms[toKeep])
 
     # Treat freqs separately as they are lists instead of floats
-    freqs_interp = []
-    for j in range(len(model_best_frot["ls"])) :
+    K = len(model_best_frot["ls"])
+    freqs_interp = np.empty()
+    for k in range(K) :
         # Each model should have the same l, m, n_pg in the same order
-        freq_track = all_freqs[:,j]
+        freq_track = all_freqs[k,:]
         toKeep = [~np.isnan(freq_track)][0]
         if np.sum(toKeep) <= 2 or np.min(abs(frots_rel[toKeep] - \
                                              frot_best/model["f_K"])) > 0.03 :
-            freqs_interp.append(np.nan)
-            continue
-        freqs_interp.append(np.interp(frot_best, frots[toKeep],
-                                      freq_track[toKeep]))
-    model_best_frot["freqs"] = np.array(freqs_interp)
+            freqs_interp[k] = np.nan
+        else :
+            freqs_interp[k] = np.interp(frot_best, frots[toKeep], 
+                                        freq_track[toKeep])
+    model_best_frot["freqs"] = freqs_interp
 
     return model_best_frot
 
@@ -886,6 +891,8 @@ def interpolate_track_to_model_in_age(tracks, age, frot_rel=0.00,
         "log_L": float
             Base 10 logarithm of the luminosity of the MESA model, interpolated
             to Xc
+        "M": float
+            Stellar mass in solar masses. *Not* the initial stellar mass. 
         "MESA_model_dir": string
             Path to the directory containing the output of this particular MESA
             run
@@ -900,27 +907,26 @@ def interpolate_track_to_model_in_age(tracks, age, frot_rel=0.00,
     model = {"age":age ,
              "ls":tracks["ls"], "ms":tracks["ms"], "n_pgs":tracks["n_pgs"],
              "Xc_min":tracks["Xc_min"], "Xc_max":tracks["Xc_max"]}
-    history_age, history_Xc, history_log_Teff, history_log_L = \
+    history_age, history_Xc, history_log_Teff, history_log_L, history_M = \
         read_MESA_history_columns(tracks["histfile"],
-                                  ["star_age", "center_h1", "log_Teff", "log_L"],
+                                  ["star_age","center_h1","log_Teff","log_L","star_mass"],
                                   Xc_min=tracks["Xc_min"],
                                   Xc_max=tracks["Xc_max"], flip=False)
-    # try :
     spline = scint.CubicSpline(history_age, history_log_Teff)
-    # except ValueError :
-    #     raise ValueError("history_age in this track does not decrease monotonically.")
     model["log_Teff"] = float(spline(age, extrapolate=False))
     spline = scint.CubicSpline(history_age, history_log_L)
     model["log_L"] = float(spline(age, extrapolate=False))
+    spline = scint.CubicSpline(history_age, history_M)
+    model["M"] = float(spline(age, extrapolate=False))
     spline = scint.CubicSpline(history_age, history_Xc)
     model["Xc"] = float(spline(age, extrapolate=False))
     spline = scint.CubicSpline(tracks["ages"], tracks["f_Ks"])
     model["f_K"] = float(spline(age, extrapolate=False))
 
-    freqs_interp = []
+    freqs_interp = np.empty(len(model["ls"]))
     ages = tracks["ages"]
     Xcs = tracks["Xcs"]
-    for l, m, n_pg in zip(model["ls"], model["ms"], model["n_pgs"]) :
+    for k,(l,m,n_pg) in enumerate(zip(model["ls"],model["ms"],model["n_pgs"])) :
         freq_track = get_frequency_track(tracks, l, m, n_pg, frot_rel=frot_rel)
         ages_noNan = ages[~np.isnan(freq_track)]
         Xcs_noNan = Xcs[~np.isnan(freq_track)]
@@ -930,28 +936,28 @@ def interpolate_track_to_model_in_age(tracks, age, frot_rel=0.00,
         # interpolated frequency
         if (len(ages_noNan) <= 1) or \
            (np.nanmin(abs(Xcs_noNan - model["Xc"])) > 0.05) :
-            freqs_interp.append(np.nan)
-            continue
-        freq_track = freq_track[~np.isnan(freq_track)]
-        spline = scint.CubicSpline(ages_noNan, freq_track)
-        freqs_interp.append(spline(age, extrapolate=False))
-    model["freqs"] = np.array(freqs_interp)
+            freqs_interp[k] = np.nan
+        else :
+            freq_track = freq_track[~np.isnan(freq_track)]
+            spline = scint.CubicSpline(ages_noNan, freq_track)
+            freqs_interp[k] = spline(age, extrapolate=False)
+    model["freqs"] = np.array(freqs_interp[~np.isnan(freqs_interp)])
     model["MESA_model_dir"] = tracks["MESA_model_dir"]
     model["histfile"] = tracks["histfile"]
     model["frot_rel"] = frot_rel
     model["frot"] = frot_rel * model["f_K"]
 
     if add_beta :
-        betas_interp = []
-        for beta_track in tracks["betas"] :
+        betas_interp = np.empty(len(tracks["betas"]))
+        for k,beta_track in enumerate(tracks["betas"]) :
             ages_noNan = ages[~np.isnan(beta_track)]
             betas_noNan = beta_track[~np.isnan(beta_track)]
             if len(betas_noNan) <= 2 :
-                betas_interp.append(np.nan)
+                betas_interp[k] = np.nan
             else :
                 spline = scint.CubicSpline(ages_noNan, betas_noNan)
-                betas_interp.append(spline(age, extrapolate=False))
-        model["betas"] = np.array(betas_interp)
+                betas_interp[k] = float(spline(age, extrapolate=False))
+        model["betas"] = betas_interp
 
     return model
 
