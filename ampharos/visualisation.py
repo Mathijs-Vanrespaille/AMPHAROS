@@ -610,11 +610,11 @@ def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True
                                   save=False, save_dir="plots/",
                                   save_name="chi2_grid_params", show=True) :
     """
-    Plot the chi2 against the initial mass, envelope mixing strength and
-    overshoot parameter for each evolutionary track in the grid. The best model
-    in the set of provided results is shown in cyan, if requested, and the
-    statistical model as a purple shaded area between the mean and +- its
-    standard deviation, if requested.
+    Plot the chi2 against the initial metallicity initial mass, envelope mixing 
+    strength and overshoot parameter for each evolutionary track in the grid. 
+    The best model in the set of provided results is shown in cyan, if 
+    requested, and the statistical model as a purple shaded area between the 
+    mean and +- its standard deviation, if requested.
 
 
     Author: Mathijs Vanrespaille
@@ -668,29 +668,53 @@ def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True
         Array of three Axes object encapsulating all elements of this plot
 
     """
-    fig, axs = plt.subplots(1, 3, figsize=(15, 5))
+    fig, axs = plt.subplots(2, 2, figsize=(10, 10))
 
     chi2s = np.array(results["chi2s"])
-    Ms = np.array(grid["Ms"])
+    Zinis = np.array(grid["Zinis"])
+    Minis = np.array(grid["Minis"])
     logDs = np.array(grid["logDs"])
     fovs = np.array(grid["fovs"])
     index = results["best_model_index"]
 
-    ax = axs[0]
+    ax = axs[0,0]
     if hollow_spectro_incompatible :
         compatible = results["spectro_compatible"]
-        ax.scatter(Ms[~compatible], chi2s[~compatible], facecolor="none",
+        ax.scatter(Zinis[~compatible], chi2s[~compatible], facecolor="none",
                    color="blue")
-        ax.scatter(Ms[compatible], chi2s[compatible], color="blue")
+        ax.scatter(Zinis[compatible], chi2s[compatible], color="blue")
     else :
-        ax.scatter(Ms, chi2s, color="blue")
+        ax.scatter(Zinis, chi2s, color="blue")
     if show_best_model and not type(index) == float :
-        ax.scatter(Ms[index], chi2s[index], marker="*", color="cyan", s=150,
+        ax.scatter(Zinis[index], chi2s[index], marker="*", color="cyan", s=150,
                    zorder=3, label="best model")
     if show_statistical_model :
         statistical_model = results["statistical_model"]
-        mean = statistical_model["M_mean"]
-        std = statistical_model["M_std"]
+        mean = statistical_model["Zini_mean"]
+        std = statistical_model["Zini_std"]
+        ax.axvspan(mean-std, mean+std, alpha=0.5, color="crimson")
+    ax.set_xlabel(r"initial metallicity", fontsize=12)
+    ax.set_ylabel(r"$\chi^2$", fontsize=12)
+    ax.tick_params(bottom=True, left=True, top=True, right=True, which='both')
+    ax.minorticks_on()
+    if log :
+        ax.set_yscale("log")
+
+    ax = axs[0,1]
+    if hollow_spectro_incompatible :
+        compatible = results["spectro_compatible"]
+        ax.scatter(Minis[~compatible], chi2s[~compatible], facecolor="none",
+                   color="blue")
+        ax.scatter(Minis[compatible], chi2s[compatible], color="blue")
+    else :
+        ax.scatter(Minis, chi2s, color="blue")
+    if show_best_model and not type(index) == float :
+        ax.scatter(Minis[index], chi2s[index], marker="*", color="cyan", s=150,
+                   zorder=3, label="best model")
+    if show_statistical_model :
+        statistical_model = results["statistical_model"]
+        mean = statistical_model["Mini_mean"]
+        std = statistical_model["Mini_std"]
         ax.axvspan(mean-std, mean+std, alpha=0.5, color="crimson")
     ax.set_xlabel(r"initial mass [M$_\odot$]", fontsize=12)
     ax.set_ylabel(r"$\chi^2$", fontsize=12)
@@ -699,7 +723,7 @@ def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True
     if log :
         ax.set_yscale("log")
 
-    ax = axs[1]
+    ax = axs[1,0]
     ax.set_title(title, fontsize=12)
     if hollow_spectro_incompatible :
         ax.scatter(logDs[~compatible], chi2s[~compatible], facecolor="none",
@@ -721,7 +745,7 @@ def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True
     if log :
         ax.set_yscale("log")
 
-    ax = axs[2]
+    ax = axs[1,1]
     if hollow_spectro_incompatible :
         ax.scatter(fovs[~compatible], chi2s[~compatible], facecolor="none",
                    color="blue")
@@ -986,22 +1010,26 @@ def plot_chi2_coloured_grid_params(grid, results, show_best_model=True,
         Array of three Axes object encapsulating all elements of this plot
     """
 
-    fig, axs = plt.subplots(1, 3, figsize=(15,5))
+    fig, axs = plt.subplots(2, 3, figsize=(15,10))
 
     chi2s = np.array(results["chi2s"])
-    Ms = np.array(grid["Ms"])
+    Zinis = np.array(grid["Zinis"])
+    Minis = np.array(grid["Minis"])
     logDs = np.array(grid["logDs"])
     fovs = np.array(grid["fovs"])
 
     index = results["best_model_index"]
     if show_best_model and not type(index) == float :
-        M_best = Ms[index]
+        Zini_best = Zinis[index]
+        Mini_best = Minis[index]
         logD_best = logDs[index]
         fov_best = fovs[index]
     if show_statistical_model :
         statistical_model = results["statistical_model"]
-        M_mean = statistical_model["M_mean"]
-        M_std = statistical_model["M_std"]
+        Zini_mean = statistical_model["Zini_mean"]
+        Zini_std = statistical_model["Zini_std"]
+        Mini_mean = statistical_model["Mini_mean"]
+        Mini_std = statistical_model["Mini_std"]
         logD_mean = statistical_model["logD_mean"]
         logD_std = statistical_model["logD_std"]
         fov_mean = statistical_model["fov_mean"]
@@ -1009,49 +1037,97 @@ def plot_chi2_coloured_grid_params(grid, results, show_best_model=True,
 
     I = np.argsort(-chi2s) # Indices to sort from largest to smallest chi2
     chi2s = chi2s[I]
-    Ms = Ms[I]
+    Zinis = Zinis[I]
+    Minis = Minis[I]
     logDs = logDs[I]
     fovs = fovs[I]
 
     if only_plot_compatible :
         compatible = np.array(results["spectro_compatible"])[I]
         chi2s = chi2s[compatible]
-        Ms = Ms[compatible]
+        Zinis = Zinis[compatible]
+        Minis = Minis[compatible]
         logDs = logDs[compatible]
         fovs = fovs[compatible]
 
-    ax = axs[0]
+    ax = axs[0,0]
     if log :
-        ax.scatter(logDs, Ms, c=np.log10(chi2s), cmap=colourmap, vmin=cmin,
+        ax.scatter(Minis, Zinis, c=np.log10(chi2s), cmap=colourmap, vmin=cmin,
                    vmax=cmax, zorder=1, s=20)
     else :
-        ax.scatter(logDs, Ms, c=chi2s, cmap=colourmap, vmin=cmin, vmax=cmax,
+        ax.scatter(Minis, Zinis, c=chi2s, cmap=colourmap, vmin=cmin, vmax=cmax,
                    zorder=1, s=20)
     if show_best_model :
-        ax.scatter(logD_best, M_best, color="cyan", marker="*", s=100)
+        ax.scatter(Mini_best, Zini_best, color="cyan", marker="*", s=100)
     if show_best_model and not type(index) == float :
-        ax.errorbar(x=logD_mean, y=M_mean, xerr=logD_std, yerr=M_std,
+        ax.errorbar(x=Mini_mean, y=Zini_mean, xerr=Mini_std, yerr=Zini_std,
                     color="crimson", marker="*", markersize=10)
-    ax.set_xlabel(r"$\log{(D_\mathrm{mix})}$ [$cm^2/s$]", fontsize=10)
-    ax.set_ylabel(r"M [M$_\odot$]", fontsize=10)
+    ax.set_xlabel(r"$M_\mathrm{ini}$ [M$_\odot$]", fontsize=10)
+    ax.set_ylabel(r"$Z_\mathrm{ini}$", fontsize=10)
 
-    ax = axs[1]
-    ax.set_title(title, fontsize=12)
+    ax = axs[0,1]
     if log :
-        ax.scatter(fovs, Ms, c=np.log10(chi2s), cmap=colourmap, vmin=cmin,
+        ax.scatter(Minis, logDs, c=np.log10(chi2s), cmap=colourmap, vmin=cmin,
                    vmax=cmax, zorder=1, s=20)
     else :
-        ax.scatter(fovs, Ms, c=chi2s, cmap=colourmap, vmin=cmin, vmax=cmax,
+        ax.scatter(Minis, logDs, c=chi2s, cmap=colourmap, vmin=cmin, vmax=cmax,
+                   zorder=1, s=20)
+    if show_best_model :
+        ax.scatter(Mini_best, logD_best, color="cyan", marker="*", s=100)
+    if show_best_model and not type(index) == float :
+        ax.errorbar(x=Mini_mean, y=logD_mean, xerr=Mini_std, yerr=logD_std,
+                    color="crimson", marker="*", markersize=10)
+    ax.set_xlabel(r"$M_\mathrm{ini}$ [M$_\odot$]", fontsize=10)
+    ax.set_ylabel(r"$\log{(D_\mathrm{mix})}$ [$cm^2/s$]", fontsize=10)
+
+    ax = axs[0,2]
+    ax.set_title(title, fontsize=12)
+    if log :
+        ax.scatter(Minis, fovs, c=np.log10(chi2s), cmap=colourmap, vmin=cmin,
+                   vmax=cmax, zorder=1, s=20)
+    else :
+        ax.scatter(Minis, fovs, c=chi2s, cmap=colourmap, vmin=cmin, vmax=cmax,
                    zorder=1, s=20)
     if show_best_model and not type(index) == float :
-        ax.scatter(fov_best, M_best, color="cyan", marker="*", s=100)
+        ax.scatter(Mini_best, fov_best, color="cyan", marker="*", s=100)
     if show_statistical_model :
-        ax.errorbar(x=fov_mean, y=M_mean, xerr=fov_std, yerr=M_std,
+        ax.errorbar(x=Mini_mean, y=fov_mean, xerr=Mini_std, yerr=fov_std,
                     color="crimson", marker="*", markersize=10)
-    ax.set_xlabel(r"f$_\mathrm{ov}$", fontsize=10)
-    ax.set_ylabel(r"M [M$_\odot$]", fontsize=10)
+    ax.set_xlabel(r"$M_\mathrm{ini}$ [M$_\odot$]", fontsize=10)
+    ax.set_ylabel(r"$f_\mathrm{ov}$", fontsize=10)
 
-    ax = axs[2]
+    ax = axs[1,0]
+    if log :
+        ax.scatter(Zinis, logDs, c=np.log10(chi2s), cmap=colourmap, vmin=cmin,
+                   vmax=cmax, zorder=1, s=20)
+    else :
+        ax.scatter(Zinis, logDs, c=chi2s, cmap=colourmap, vmin=cmin, vmax=cmax,
+                   zorder=1, s=20)
+    if show_best_model :
+        ax.scatter(Zini_best, logD_best, color="cyan", marker="*", s=100)
+    if show_best_model and not type(index) == float :
+        ax.errorbar(x=Zini_mean, y=logD_mean, xerr=Zini_std, yerr=logD_std,
+                    color="crimson", marker="*", markersize=10)
+    ax.set_xlabel(r"$Z_\mathrm{ini}$", fontsize=10)
+    ax.set_ylabel(r"$\log{(D_\mathrm{mix})}$ [$cm^2/s$]", fontsize=10)
+
+    ax = axs[1,1]
+    ax.set_title(title, fontsize=12)
+    if log :
+        ax.scatter(Zinis, fovs, c=np.log10(chi2s), cmap=colourmap, vmin=cmin,
+                   vmax=cmax, zorder=1, s=20)
+    else :
+        ax.scatter(Zinis, fovs, c=chi2s, cmap=colourmap, vmin=cmin, vmax=cmax,
+                   zorder=1, s=20)
+    if show_best_model and not type(index) == float :
+        ax.scatter(Zini_best, fov_best, color="cyan", marker="*", s=100)
+    if show_statistical_model :
+        ax.errorbar(x=Zini_mean, y=fov_mean, xerr=Zini_std, yerr=fov_std,
+                    color="crimson", marker="*", markersize=10)
+    ax.set_ylabel(r"$Z_\mathrm{ini}$", fontsize=10)
+    ax.set_ylabel(r"$f_\mathrm{ov}$", fontsize=10)
+
+    ax = axs[1,2]
     if log :
         c = ax.scatter(logDs, fovs, c=np.log10(chi2s), cmap=colourmap,
                        vmin=cmin, vmax=cmax, zorder=1, s=20)
@@ -1094,10 +1170,10 @@ def plot_grid_params_chi2_corner(grid, results, show_best_model=True,
                                  save_name="chi2_coloured_grid_params",
                                  show=True) :
     """
-    A custom corner plot the relations betweem mass, envelope mixing strength
-    and overshooting parameters and chi2. The scattered dots are ordered such
-    that the best chi2 is always plotted on top. The best model is highlighted
-    by a cyan star
+    A custom corner plot the relations betweem initial metallicity, initial 
+    mass, envelope mixing strength, and overshooting parameters and chi2. The 
+    scattered dots are ordered such that the best chi2 is always plotted on top. 
+    The best model is highlighted by a cyan star
 
     Author: Mathijs Vanrespaille
 
@@ -1169,40 +1245,44 @@ def plot_grid_params_chi2_corner(grid, results, show_best_model=True,
 
     """
 
-    fig, axs = plt.subplots(3, 3, figsize=(15,15))
+    fig, axs = plt.subplots(4, 4, figsize=(16,16))
 
     chi2s = np.array(results["chi2s"])
-    Ms = grid["Ms"]
+    Zinis = grid["Zinis"]
+    Minis = grid["Minis"]
     logDs = grid["logDs"]
     fovs = grid["fovs"]
 
     index = results["best_model_index"]
     if show_best_model and not type(index) == float :
         chi2_best = chi2s[index]
-        data_best = [Ms[index], logDs[index], fovs[index]]
+        data_best = [Zinis[index], Minis[index], logDs[index], fovs[index]]
     if show_statistical_model :
         statistical_model = results["statistical_model"]
-        data_means = [statistical_model["M_mean"],
+        data_means = [statistical_model["Zini_mean"],
+                      statistical_model["Mini_mean"],
                       statistical_model["logD_mean"],
                       statistical_model["fov_mean"]]
-        data_stds = [statistical_model["M_std"],
+        data_stds = [statistical_model["Zini_std"],
+                     statistical_model["Mini_std"],
                      statistical_model["logD_std"],
                      statistical_model["fov_std"]]
 
     I_toKeep = ~np.isnan(chi2s)
     chi2s = chi2s[I_toKeep]
-    Ms = Ms[I_toKeep]
+    Zinis = Zinis[I_toKeep]
+    Minis = Minis[I_toKeep]
     logDs = logDs[I_toKeep]
     fovs = fovs[I_toKeep]
 
     I = np.argsort(-chi2s) # Indices to sort from largest to smallest chi2
     chi2s = chi2s[I]
-    data = [Ms[I], logDs[I], fovs[I]]
-    labels = [r"M [M$_\odot$]", r"$\log{(D_\mathrm{mix})}$ [$cm^2/s$]",
-              r"f$_\mathrm{ov}$"]
+    data = [Zinis[I], Minis[I], logDs[I], fovs[I]]
+    labels = [r"$Z_\mathrm{ini}$", r"$M_\mathrm{ini}$ [M$_\odot$]", 
+              r"$\log{(D_\mathrm{mix})}$ [$cm^2/s$]", r"f$_\mathrm{ov}$"]
 
-    for i in range(3) :
-        for j in range(3) :
+    for i in range(4) :
+        for j in range(4) :
             ax = axs[j][i]
             if i == j :
                 if hollow_spectro_incompatible :
@@ -1262,7 +1342,7 @@ def plot_grid_params_chi2_corner(grid, results, show_best_model=True,
                 ax.set_xlabel(labels[i], fontsize=10)
                 ax.set_ylabel(labels[j], fontsize=10)
 
-    axs[0][1].set_title(title, fontsize=12)
+    fig.set_title(title, fontsize=12)
 
     plt.tight_layout()
 
@@ -1443,49 +1523,71 @@ def plot_Xc_grid_params(grid, results, show_best_model=True,
         Array of three Axes object encapsulating all elements of this plot
 
     """
-    fig, axs = plt.subplots(1, 3, figsize=(15,5))
+    fig, axs = plt.subplots(2, 2, figsize=(10,10))
 
     Xcs = results["Xcs_cross"]
-    Ms = grid["Ms"]
+    Zinis = grid["Zinis"]
+    Minis = grid["Minis"]
     logDs = grid["logDs"]
     fovs = grid["fovs"]
 
     index = results["best_model_index"]
     if show_best_model and not type(index) == float :
         Xc_best = Xcs[index]
-        M_best = Ms[index]
+        Zini_best = Zinis[index]
+        Mini_best = Minis[index]
         logD_best = logDs[index]
         fov_best = fovs[index]
     if show_statistical_model :
         statistical_model = results["statistical_model"]
         Xc_mean = statistical_model["Xc_mean"]
         Xc_std = statistical_model["Xc_std"]
-        M_mean = statistical_model["M_mean"]
-        M_std = statistical_model["M_std"]
+        Zini_mean = statistical_model["Zini_mean"]
+        Zini_std = statistical_model["Zini_std"]
+        Mini_mean = statistical_model["Mini_mean"]
+        Mini_std = statistical_model["Mini_std"]
         logD_mean = statistical_model["logD_mean"]
         logD_std = statistical_model["logD_std"]
         fov_mean = statistical_model["fov_mean"]
         fov_std = statistical_model["fov_std"]
 
-    ax = axs[0]
+    ax = axs[0,0]
     if hollow_spectro_incompatible :
         compatible = results["spectro_compatible"]
-        ax.scatter(Ms[~compatible], Xcs[~compatible], facecolor="none",
+        ax.scatter(Zinis[~compatible], Xcs[~compatible], facecolor="none",
                    edgecolor="blue")
-        ax.scatter(Ms[compatible], Xcs[compatible], color="blue")
+        ax.scatter(Zinis[compatible], Xcs[compatible], color="blue")
     else :
-        ax.scatter(Ms, Xcs, color="blue")
+        ax.scatter(Zinis, Xcs, color="blue")
     if show_best_model :
-        ax.scatter(M_best, Xc_best, marker="*", color="cyan", s=150, zorder=3)
+        ax.scatter(Zini_best, Xc_best, marker="*", color="cyan", s=150, zorder=3)
     if show_statistical_model :
-        ax.errorbar(x=M_mean, y=Xc_mean, xerr=M_std, yerr=Xc_std, marker="*",
+        ax.errorbar(x=Zini_mean, y=Xc_mean, xerr=Zini_std, yerr=Xc_std, marker="*",
                     color="crimson", markersize=10, zorder=3)
-    ax.set_xlabel(r"M [M$_\odot$]", fontsize=12)
-    ax.set_ylabel(r"Xc", fontsize=12)
+    ax.set_xlabel(r"$Z_\mathrm{ini}$ [M$_\odot$]", fontsize=12)
+    ax.set_ylabel(r"$X_\mathrm{c}$", fontsize=12)
     ax.tick_params(bottom=True, left=True, top=True, right=True, which='both')
     ax.minorticks_on()
 
-    ax = axs[1]
+    ax = axs[0,1]
+    if hollow_spectro_incompatible :
+        compatible = results["spectro_compatible"]
+        ax.scatter(Minis[~compatible], Xcs[~compatible], facecolor="none",
+                   edgecolor="blue")
+        ax.scatter(Minis[compatible], Xcs[compatible], color="blue")
+    else :
+        ax.scatter(Minis, Xcs, color="blue")
+    if show_best_model :
+        ax.scatter(Mini_best, Xc_best, marker="*", color="cyan", s=150, zorder=3)
+    if show_statistical_model :
+        ax.errorbar(x=Mini_mean, y=Xc_mean, xerr=Mini_std, yerr=Xc_std, marker="*",
+                    color="crimson", markersize=10, zorder=3)
+    ax.set_xlabel(r"$M_\mathrm{ini}$ [M$_\odot$]", fontsize=12)
+    ax.set_ylabel(r"$X_\mathrm{c}$", fontsize=12)
+    ax.tick_params(bottom=True, left=True, top=True, right=True, which='both')
+    ax.minorticks_on()
+
+    ax = axs[1,0]
     if hollow_spectro_incompatible :
         compatible = results["spectro_compatible"]
         ax.scatter(logDs[~compatible], Xcs[~compatible], facecolor="none",
@@ -1500,12 +1602,12 @@ def plot_Xc_grid_params(grid, results, show_best_model=True,
         ax.errorbar(x=logD_mean, y=Xc_mean, xerr=logD_std, yerr=Xc_std,
                     marker="*", color="crimson", markersize=10, zorder=3)
     ax.set_xlabel(r"$\log{(D_\mathrm{mix})}$ [$cm^2/s$]", fontsize=12)
-    ax.set_ylabel(r"Xc", fontsize=12)
+    ax.set_ylabel(r"$X_\mathrm{c}$", fontsize=12)
     ax.set_title(title, fontsize=12)
     ax.tick_params(bottom=True, left=True, top=True, right=True, which='both')
     ax.minorticks_on()
 
-    ax = axs[2]
+    ax = axs[1,1]
     if hollow_spectro_incompatible :
         compatible = results["spectro_compatible"]
         ax.scatter(fovs[~compatible], Xcs[~compatible], facecolor="none",
@@ -1518,8 +1620,8 @@ def plot_Xc_grid_params(grid, results, show_best_model=True,
     if show_statistical_model :
         ax.errorbar(x=fov_mean, y=Xc_mean, xerr=fov_std, yerr=Xc_std,
                     marker="*", color="crimson", markersize=10, zorder=3)
-    ax.set_xlabel(r"f$_\mathrm{ov}$", fontsize=12)
-    ax.set_ylabel(r"Xc", fontsize=12)
+    ax.set_xlabel(r"$f_\mathrm{ov}$", fontsize=12)
+    ax.set_ylabel(r"$X_\mathrm{c}$", fontsize=12)
     ax.tick_params(bottom=True, left=True, top=True, right=True, which='both')
     ax.minorticks_on()
 
