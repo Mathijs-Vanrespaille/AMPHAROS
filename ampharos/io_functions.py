@@ -228,10 +228,84 @@ def create_observation_dict(row, sort_by_l, sort_by_freq) :
     return observation
 
 
-def process_summary_file(storm_summary_path, MESA_model_dir,
+def process_summary_file(storm_summary_path, 
                          ls_track, ms_track, n_pgs_track,
                          frots_rel_to_include, mn_lookup,
-                         add_beta):
+                         add_beta, MESA_model_dir):
+    """
+    Read in and summarise all the STORM output of a MESA run with the given
+    parameters. This collects the predicted frequencies of the given
+    combinations of degree l and radial order n_pgs at every output step. All
+    output is collected into a dictionary, described below.
+
+    Author: Mathijs Vanrespaille
+
+    ------- Parameters -------
+    storm_summary_path: string
+        The full or relative path to StORM summary file to be loaded in
+    ls_track: list of ints
+        Degrees of the predicted modes to be read in
+        Must be the same length as n_pgs_track and ms_track
+    ms_track: list of ints
+        Azimuthal orders of the predicted modes to be read in
+        Must be the same length as n_pgs and ls_track
+    n_pgs_track: list of ints
+        Radial orders, within the Eckart-Scuflaire-Osaki-Takata scheme, of the
+        predicted modes to be read in
+        Must be the same length as ls_track and ms_track
+    frots_rel_to_include: list of floats
+        The rotation rates relative to the Keplerian critical rotation rate to
+        be included. If left empty, all the rotation rates provided in the StORM
+        summaries are used.
+        Defaults to []
+    mn_lookup: dict
+        Dictionary used to look up the index of a predicted frequency in the
+        summary file matching a particular mode identity.
+        Keys are 3-element tuples like (l, m, n_pg) and values are ints 
+    add_beta: bool
+        Whether to include the beta_nl constant from GYRE for each multiplet in
+        the model
+        Setting this to True increases loading time considerably
+        Defaults to False
+    MESA_model_dir: string
+        The full or relative path to the folder containing the MESA and StORM 
+        output of this MESA evolutionary track
+        Only used if add_beta is True
+
+    ------- Returns -------
+    tracks: dict containing
+        "age": float
+            The age in years of this instance of MESA output
+        "mn": numpy.array of ints
+            Model numbers at which MESA saved
+        "Xc": float
+            The actual central hydrogen fraction of this instance of MESA output
+        "Xc_save": float
+            The central hydrogen fraction around which MESA this instance of 
+            MESA output
+        "log_Teff": float
+            base-10 logarithm of effective temperature in K
+        "log_L": float
+            base-10 logarithm of luminosity in solar luminosities
+        "freqs": numpy.array of numpy.arrays of floats
+            Contains an array for each mode identity (l,m,n_pgs), rotation rate
+            array dimensions equals (K, F)
+        "track_reliable": numpy.array of bools
+            Whether the summarising algorithm did not detect any discrepancies
+            with this each track
+            array length equals K
+        "f_K": float
+            The Keplerian critical rotation rate of this instance of MESA output
+            in cycles per day
+        "betas": numpy array of floats
+            The beta_nl of each mode
+            Only included if add_beta is True
+            array length equals K
+
+    with K the number of mode identities read in and M the number of output
+    steps of the model and F the number of considered rotation rates.
+    Each array over time (those of length M) is sorted by Xc
+    """
     # Get the model number (and central hydrogen fraction at which MESA was meant to save; unused here)
     mn, Xc_save = read_model_number_and_Xc_save(storm_summary_path)
     # The real central hydrogen fraction of this MESA model and other stellar parameters
@@ -301,12 +375,12 @@ def process_summary_file(storm_summary_path, MESA_model_dir,
                 else :
                     betas[k] = np.nan
 
-    results = {"age": age, "mn": mn, "Xc": Xc, "Xc_save": Xc_save, "f_K": f_K,
+    track = {"age": age, "mn": mn, "Xc": Xc, "Xc_save": Xc_save, "f_K": f_K,
                "freqs": freqs, "track_reliable": reliable,
                "log_Teff":logT, "log_L":logL}
     if add_beta :
-        results["betas"] = betas
-    return results
+        track["betas"] = betas
+    return track
 
 
 def read_MESA_history_column(history_file, column_name, dtype=float,
@@ -583,10 +657,10 @@ def read_storm_tracks(MESA_output_dir, Zini, Mini, logD, fov,
         "mns": numpy.array of ints
             Model numbers at which MESA saved
             array length equals M
-        "log_Teffs":
+        "log_Teffs": numpy.array of floats
             base-10 logarithms of effective temperature in K
             array length equals M
-        "log_Ls":
+        "log_Ls": numpy.array of floats
             base-10 logarithms of luminosity in solar luminosities
             array length equals M
         "frots": numpy.array of floats
@@ -628,7 +702,6 @@ def read_storm_tracks(MESA_output_dir, Zini, Mini, logD, fov,
     with K the number of mode identities read in and M the number of output
     steps of the model and F the number of considered rotation rates.
     Each array over time (those of length M) is sorted by Xc
-
     """
     assert len(ls) == len(n_pgs)
 
@@ -694,29 +767,29 @@ def read_storm_tracks(MESA_output_dir, Zini, Mini, logD, fov,
 
     worker = partial(
         process_summary_file,
-        MESA_model_dir=MESA_model_dir,
         ls_track=ls_track,
         ms_track=ms_track,
         n_pgs_track=n_pgs_track,
         frots_rel_to_include=frots_rel_to_include,
         mn_lookup=mn_lookup,
         add_beta=add_beta,
+        MESA_model_dir=MESA_model_dir,
     )
     with ProcessPoolExecutor() as executor:
-        results = list(executor.map(worker, storm_summary_paths))
+        tracks = list(executor.map(worker, storm_summary_paths))
 
-    for j, result in enumerate(results):
-        all_tracks["ages"][j] = result["age"]
-        all_tracks["mns"][j] = result["mn"]
-        all_tracks["log_Teffs"][j] = result["log_Teff"]
-        all_tracks["log_Ls"][j] = result["log_L"]
-        all_tracks["Xcs"][j] = result["Xc"]
-        all_tracks["Xc_saves"][j] = result["Xc_save"]
-        all_tracks["freqs"][:,:,j] = result["freqs"]
-        all_tracks["track_reliable"][:,j] = result["track_reliable"]
-        all_tracks["f_Ks"][j] = result["f_K"]
+    for j, track in enumerate(tracks):
+        all_tracks["ages"][j] = track["age"]
+        all_tracks["mns"][j] = track["mn"]
+        all_tracks["log_Teffs"][j] = track["log_Teff"]
+        all_tracks["log_Ls"][j] = track["log_L"]
+        all_tracks["Xcs"][j] = track["Xc"]
+        all_tracks["Xc_saves"][j] = track["Xc_save"]
+        all_tracks["freqs"][:,:,j] = track["freqs"]
+        all_tracks["track_reliable"][:,j] = track["track_reliable"]
+        all_tracks["f_Ks"][j] = track["f_K"]
         if add_beta :
-            all_tracks["betas"][:,j] = result["betas"]
+            all_tracks["betas"][:,j] = track["betas"]
 
     # for j,storm_summary_path in enumerate(storm_summary_paths) :
     # Turn all time independent lists into Numpy arrays and sort by age
