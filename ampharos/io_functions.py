@@ -642,10 +642,10 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
     folder = "Z{Z:.3f}_M{M:.2f}_logD{logD:.1f}_fov{fov:.3f}".format(Z=Z,M=M,logD=logD,fov=fov)
     MESA_model_dir = "{MESA_output_dir}/{folder}/".format(MESA_output_dir=MESA_output_dir,folder=folder)
     history_file = "{MESA_model_dir}/{folder}.hist".format(MESA_model_dir=MESA_model_dir,folder=folder)
-    mn_hist, Xc_hist, age_hist, log_Teff_hist, log_L_hist = read_MESA_history_columns(history_file,
-                                                                                      ["model_number", "center_h1", "star_age", "log_Teff", "log_L"],
-                                                                                      Xc_min=Xc_min,
-                                                                                      Xc_max=Xc_max)
+    mn_hist,Xc_hist,age_hist,log_Teff_hist,log_L_hist = read_MESA_history_columns(history_file,
+                                                                                  ["model_number","center_h1","star_age","log_Teff","log_L"],
+                                                                                  Xc_min=Xc_min,
+                                                                                  Xc_max=Xc_max)
     mn_lookup = {
         mn: (age, Xc, logT, logL)
         for mn, age, Xc, logT, logL in zip(mn_hist, age_hist, Xc_hist, log_Teff_hist, log_L_hist)
@@ -664,15 +664,15 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
     K = len(ls_track) # Number of predicted tracks
     M = len(storm_summary_paths) # Number of summaries
     F = len(frots_rel_to_include) # Number of considered relative rotation rates
-    if F == 0 :
-        F = 41 # Hard coded for now
 
-    with h5py.File(storm_summary_paths[0], "r") as storm_summary :
-        f_K = storm_summary.attrs["f_K"]
-        if len(frots_rel_to_include) == 0 :
+    # Read the number of rotation rates from one file, assuming they all 
+    # use the same frots_rel. 
+    if F == 0 :
+        with h5py.File(storm_summary_paths[0], "r") as storm_summary :
             frots_rel = np.array(storm_summary["frots_rel"])
-        else :
-            frots_rel = np.array(frots_rel_to_include)
+            F = len(frots_rel)
+    else :
+        frots_rel = np.array(frots_rel_to_include)
 
     all_tracks = {"ages":np.empty(M), "mns":np.empty(M),
                   "log_Teffs":np.empty(M), "log_Ls":np.empty(M),
@@ -683,7 +683,7 @@ def read_storm_tracks(MESA_output_dir, Z, M, logD, fov, frots_rel_to_include=[],
                   "ms":np.array(ms_track),
                   "ls":np.array(ls_track),
                   "n_pgs":np.array(n_pgs_track),
-                  "freqs":np.empty((K,F,M)),
+                  "freqs":np.empty((K,M,F)),
                   "track_reliable":np.empty((K,M)),
                   "f_Ks":np.empty(M),
                   "frots_rel":frots_rel}
