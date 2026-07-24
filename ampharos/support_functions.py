@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.interpolate as scint
-import sys
+from concurrent.futures import ProcessPoolExecutor
 
 from .io_functions import read_model_parameters, read_storm_tracks, \
                           read_MESA_history_columns
@@ -9,7 +9,7 @@ from .io_functions import read_model_parameters, read_storm_tracks, \
 ##### MISCELLANEOUS ############################################################
 
 
-def half_max_x(x, y):
+def half_max_x(x, y) :
     """
     Linearly interpolate to the points where the curve crosses the full width
     half maximum of the distribution y.
@@ -122,15 +122,30 @@ def initialise_grid(MESA_output_dir, parameter_file, frots_rel_to_include=[],
             "frots_rel":frots_rel_to_include, "all_tracks":[],
             "MESA_output_dir":MESA_output_dir}
     N = len(Zinis)
-    for i,(Zini,Mini,logD,fov) in enumerate(zip(Zinis,Minis,logDs,fovs)) :
-        grid["all_tracks"].append(read_storm_tracks(MESA_output_dir, Zini, Mini, 
-                                                    logD, fov, 
-                                                    frots_rel_to_include,
-                                                    Xc_min, Xc_max,
-                                                    ls=ls_to_include,
-                                                    n_pgs=n_pgs_to_include,
-                                                    add_beta=add_beta))
-        print(f"Finished reading {i+1}/{N}")
+    
+    args = [
+        (
+            MESA_output_dir,
+            Zini,
+            Mini,
+            logD,
+            fov,
+            frots_rel_to_include,
+            Xc_min,
+            Xc_max,
+            ls_to_include,
+            n_pgs_to_include,
+            add_beta
+        )
+        for Zini, Mini, logD, fov
+        in zip(Zinis, Minis, logDs, fovs)
+    ]
+    with ProcessPoolExecutor() as executor:
+        for i, track in enumerate(
+            executor.map(read_storm_tracks_wrapper, args)
+        ):
+            grid["all_tracks"].append(track)
+            print(f"Finished reading {i+1}/{N}")
     if len(frots_rel_to_include) == 0 :
         # Note that this assumes all the StORM summaries contain the same
         # relative rotation rates
@@ -138,7 +153,12 @@ def initialise_grid(MESA_output_dir, parameter_file, frots_rel_to_include=[],
     return grid
 
 
-def lin_interp(x, y, i, half):
+# Only here because ProcessPoolExecutor wants a function with only one argument
+def read_storm_tracks_wrapper(args):
+    return read_storm_tracks(*args)
+
+
+def lin_interp(x, y, i, half) :
     """
     Linearly interpolate to the point just beyond x[i] where the curve crosses
     the FWHM of the distribution y.
@@ -199,12 +219,8 @@ def get_frequency_track(tracks, l, m, n_pg, frot_rel=0.00) :
         only track the last frequency if the requested radial order is positive
         or zero and the first frequency if the requested n_pg is negative.
     """
-    if n_pg >= 0 :
-        choice = -1
-    else :
-        choice = 0
     return tracks["freqs"][tracks["ID_lookup"][(l,m,n_pg)], \
-                           tracks["frot_lookup"][frot_rel], :][choice]
+                           tracks["frot_lookup"][frot_rel], :]
 
 
 def get_mode_frequency_model(model, l, m, n_pg) :
@@ -291,7 +307,8 @@ def age_to_Xc(tracks, age) :
         Interpolated central hydrogen fraction
 
     """
-    hist_age, hist_Xc = read_MESA_history_columns(tracks["histfile"],
+    hist_age, hist_Xc = read_MESA_history_columns(tracks["histfile"], 
+                                                  tracks["lookup_histfile"], 
                                                   ["star_age", "center_h1"],
                                                   Xc_min=tracks["Xc_min"],
                                                   Xc_max=tracks["Xc_max"],
@@ -446,7 +463,8 @@ def interpolate_history_columns_in_age(tracks, age, column_names) :
 
     """
     column_names.append("star_age")
-    columns = read_MESA_history_columns(tracks["histfile"], column_names,
+    columns = read_MESA_history_columns(tracks["histfile"], 
+                                        tracks["lookup_histfile"], column_names,
                                         Xc_min=tracks["Xc_min"],
                                         Xc_max=tracks["Xc_max"], flip=False)
     history_age = columns[-1]
@@ -541,37 +559,26 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
 
     assert model_nonRot["frot"] == 0.0
 
-    freqs_zonal, ls_zonal, n_pgs_zonal, betas_zonal = [], [], [], []
-    for freq, l, m, n, beta in zip(model_nonRot["freqs"], model_nonRot["ls"],
-                                   model_nonRot["ms"], model_nonRot["n_pgs"],
-                                   model_nonRot["betas"]) :
-        if not m == 0 :
-            continue
-        freqs_zonal.append(freq)
-        ls_zonal.append(l)
-        n_pgs_zonal.append(n)
-        betas_zonal.append(beta)
+    mask = (model_nonRot["ms"] == 0) & (model_nonRot["ls"] != 0)
+
+    freqs_zonal_model = model_nonRot["freqs"][mask]
+    ls_zonal_model = model_nonRot["ls"][mask]
+    n_pgs_zonal_model = model_nonRot["n_pgs"][mask]
+    betas_zonal_model = model_nonRot["betas"][mask]
 
     # Find the mean splitting of each observed multiplet
-    ms_abs_all, splittings_all, splittings_err_all, betas_all = [], [], [], []
+    ms_abs_all, splittings_all, splittings_err_all, betas_all = np.array([]), np.array([]), np.array([]), np.array([])
     for l, freq, splittings, splittings_err in zip(observation["ls"],
                                                    observation["freqs"],
                                                    observation["splittings"],
                                                    observation["splittings_err"]) :
-        i = 0
-        if l == 0 :
-            continue
-
         # Find the beta of each multiplet
         # Find the radial order of the zonal mode with identical l nearest in zonal frequency
-        n_pg_min = 999 # Some random big filler value
-        distance_min = sys.float_info.max
-        for n_pg in np.array(n_pgs_zonal)[(np.array(ls_zonal) == l)] :
-            distance = abs(get_mode_frequency_model(model_nonRot, l, 0, n_pg) - freq)
-            if distance < distance_min :
-                distance_min = distance
-                n_pg_min = n_pg
-        if n_pg_min == 999 :
+        try :
+            n_pgs_match = np.array(n_pgs_zonal_model)[(np.array(ls_zonal_model) == l)]
+            freqs_match = np.array(freqs_zonal_model)[(np.array(ls_zonal_model) == l)]
+            n_pg_min = n_pgs_match[np.nanargmin(np.abs(freqs_match - freq))]
+        except ValueError :
             # No workable solutions. Set everything to nan and send it out the door.
             model_best_frot["frot_best"], model_best_frot["frot_rel_best"] = np.nan, np.nan
             model_best_frot["age"], model_best_frot["Xc"] = np.nan, np.nan
@@ -580,22 +587,20 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
             return model_best_frot
 
         try :
-            beta = np.array(betas_zonal)[(np.array(ls_zonal) == l) &
-                                         (np.array(n_pgs_zonal) == n_pg_min)][0]
+            beta = np.array(betas_zonal_model)[(np.array(ls_zonal_model) == l) &
+                                               (np.array(n_pgs_zonal_model) == n_pg_min)][0]
         except IndexError :
             raise Exception("no matching beta found")
 
-        for m in range(-l, l+1) :
-            if m == 0 :
-                continue
-            if np.isnan(splittings[i]) :
-                i += 1
-                continue
-            ms_abs_all.append(abs(m))
-            splittings_all.append(splittings[i])
-            splittings_err_all.append(splittings_err[i])
-            betas_all.append(beta)
-            i += 1
+        ms = np.arange(-l, l+1)
+        ms = ms[ms != 0]
+        valid = ~np.isnan(splittings)
+
+        ms_abs_all = np.concatenate(ms_abs_all, np.abs(ms)[valid])
+        splittings_all = np.concatenate(splittings_all, splittings[valid])
+        splittings_err_all = np.concatenate(splittings_err_all, splittings_err[valid])
+        betas_all = np.concatenate(betas_all, np.full(len(ms[valid]), beta))
+
     ms_abs_all = np.array(ms_abs_all)
     splittings_all = np.array(splittings_all)
     splittings_err_all = np.array(splittings_err_all)
@@ -693,93 +698,101 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
     # Extract the quantities to interpolate from all the models:
     #   age, Xc, Teff, L, all the frequencies. And frot & frot_rel of course!
     F = len(models)
-    ages, Xcs = np.empty(F), np.empty(F)
-    log_Teffs, log_Ls, Ms = np.empty(F), np.empty(F), np.empty(F)
-    frots, frots_rel = np.empty(F), np.empty(F)
-    all_freqs = np.empty(len(models[0]["freqs"]),F)
-    for j, model in enumerate(models) :
-        ages[j] = model["age"]
-        Xcs[j] = model["Xc"]
-        log_Teffs[j] = model["log_Teff"]
-        log_Ls[j] = model["log_L"]
-        Ms[j] = model["M"]
-        all_freqs[:,j] = model["freqs"]
-        frots[j] = model["frot"]
-        frots_rel[j] = model["frot_rel"]
+    ages      = np.array([m["age"]      for m in models])
+    Xcs       = np.array([m["Xc"]       for m in models])
+    log_Teffs = np.array([m["log_Teff"] for m in models])
+    log_Ls    = np.array([m["log_L"]    for m in models])
+    Ms        = np.array([m["M"]        for m in models])
+    frots     = np.array([m["frot"]     for m in models])
+    frots_rel = np.array([m["frot_rel"] for m in models])
+    all_freqs = np.stack([m["freqs"] for m in models], axis=1)
 
     # Remove outliers in Xc! Outlier = 3sigma away from the median Xc
     Xc_median = np.median(Xcs)
-    Xc_std = np.std(Xcs)
-    toKeep = np.where(abs(Xcs - Xc_median)/Xc_std < 3.)[0]
-    ages = ages[toKeep]
-    Xcs = Xcs[toKeep]
-    log_Teffs = log_Teffs[toKeep]
-    log_Ls = log_Ls[toKeep]
-    Ms = Ms[toKeep]
-    all_freqs = all_freqs[:,toKeep]
-    frots = frots[toKeep]
-    frots_rel = frots_rel[toKeep]
-
+    Xc_mad = np.median(np.abs(Xcs - Xc_median))
+    toKeep = np.abs(Xcs - Xc_median) < 3 * 1.4826 * Xc_mad
     # Sort by frot for interpolation
-    I = np.argsort(frots)
-    ages = ages[I]
-    Xcs = Xcs[I]
-    log_Teffs = log_Teffs[I]
-    log_Ls = log_Ls[I]
-    Ms = Ms[I]
-    all_freqs = all_freqs[:,I]
-    frots = frots[I]
-    frots_rel = frots_rel[I]
+    I = np.argsort(frots_rel[toKeep])
+
+    ages = ages[toKeep][I]
+    Xcs = Xcs[toKeep][I]
+    log_Teffs = log_Teffs[toKeep][I]
+    log_Ls = log_Ls[toKeep][I]
+    Ms = Ms[toKeep][I]
+    all_freqs = all_freqs[:,toKeep][I]
+    frots = frots[toKeep][I]
+    frots_rel = frots_rel[toKeep][I]
 
     # Find the rotation producing the smallest chi2 in splitting around the
     # selected zonal frequency.
     chi2s = np.zeros(F)
-    chi2s_left = np.zeros(F)
-    chi2s_right = np.zeros(F)
-    splittings_left = np.zeros(F)
-    splittings_right = np.zeros(F)
+    # The arrays below were used in debugging and some old experiments.
+    # May prove useful again in the future, so I'm not deleting them just yet
+    # chi2s_left = np.zeros(F)
+    # chi2s_right = np.zeros(F)
+    # splittings_left = np.zeros(F)
+    # splittings_right = np.zeros(F)
+
+    # We use the non-rotating model to find the closest radial order
+    idx = np.flatnonzero(toKeep)
+    model_nonRot = models[idx[I[0]]]
+    assert model_nonRot["frot_rel"] == 0.0
+    mask = (model_nonRot["ls"] == l) & (model_nonRot["ms"] == 0)
+    n_pgs = model_nonRot["n_pgs"][mask]
+
+    obs_ls = observation["ls"]
+    obs_npgs = observation["ls"]
+    obs_freqs = observation["freqs"]
+    obs_splits = observation["splittings"]
+    obs_errs = observation["splittings_err"]
+
     for k in range(observation["N_m"]) :
-        l = observation["ls"][k]
-        observation_freq_m0 = observation["freqs"][k]
-        observation_splittings = observation["splittings"][k]
-        observation_splittings_err = observation["splittings_err"][k]
+        l = obs_ls[k]
+        n_pg = obs_npgs[k]
+        observation_freq_m0 = obs_freqs[k]
+        observation_splittings = np.array(obs_splits[k])
+        observation_splittings_err = np.array(obs_errs[k])
 
-        # Find the zonal frequency with the correct degree closest to the
-        # observed frequency
-        n_pg_min = 999 # Some random big filler value
-        distance_min = sys.float_info.max
-        for n_pg in model["n_pgs"][(model["ls"] == l) & (model["ms"] == 0)] :
-            distance = abs(get_mode_frequency_model(model, l, 0, n_pg) -
-                           observation_freq_m0)
-            if distance < distance_min :
-                distance_min = distance
-                n_pg_min = n_pg
+        # If the radial order is given, compute the chi2 contribution of this
+        # zonal frequency using that specific radial order in the model
+        if not np.isnan(n_pg) :
+            n_pg_min = n_pg
+        else :
+            # Find the zonal frequency with the correct degree closest to the
+            # observed frequency
+            freqs_model = np.array([
+                get_mode_frequency_model(model_nonRot, l, 0, n_pg)
+                for n_pg in n_pgs
+            ])
+            n_pg_min = n_pgs[np.nanargmin(np.abs(freqs_model - observation_freq_m0))]
 
-        # Get the predicted splitting at each frot and add them to the chi
-        m = -l
-        for observation_split,observation_split_err in zip(observation_splittings,
-                                                           observation_splittings_err) :
-            # Skip zonal mode, already taken care of
-            if m == 0 :
-                m += 1
-            if np.isnan(observation_split) :
-                # Update azimuthal order
-                m += 1
-                continue
-            for i in I :
-                chi2 = (get_mode_splitting_model(models[i], l, m, n_pg_min) - \
-                        observation_split)**2 / observation_split_err**2
-                chi2s[i] += chi2
-                if m == -1 :
-                    chi2s_left[i] += chi2
-                    splittings_left[i] = get_mode_splitting_model(models[i], l,
-                                                                  m, n_pg_min)
-                if m == 1 :
-                    chi2s_right[i] += chi2
-                    splittings_right[i] = get_mode_splitting_model(models[i], l,
-                                                                   m, n_pg_min)
-            # Update azimuthal order
-            m += 1
+        # Get the predicted splitting at each frot and add them to the chi2
+        ms = np.arange(-l, l+1)
+        ms = ms[ms != 0]
+
+        valid = ~np.isnan(observation_splittings)
+
+        ms = ms[valid]
+        observation_splittings_nonNaN = observation_splittings[valid]
+        observation_splittings_err_nonNaN = observation_splittings_err[valid]
+
+        for m, observation_split, observation_split_err in zip(ms, 
+                                                               observation_splittings_nonNaN, 
+                                                               observation_splittings_err_nonNaN):
+            splittings_model = np.array([
+                get_mode_splitting_model(models[i], l, m, n_pg_min)
+                for i in I
+            ])
+            inv_var = 1.0 / observation_split_err**2
+            chi2s += (splittings_model - observation_split)**2 * inv_var
+            # if m == -1 :
+            #     chi2s_left[i] += chi2
+            #     splittings_left[i] = get_mode_splitting_model(models[i], l,
+            #                                                   m, n_pg_min)
+            # if m == 1 :
+            #     chi2s_right[i] += chi2
+            #     splittings_right[i] = get_mode_splitting_model(models[i], l,
+            #                                                    m, n_pg_min)
 
     toKeep = [(~np.isnan(frots)) & (~np.isnan(chi2s))][0]
     if np.isnan(chi2s).all() or np.sum(toKeep) < 4 :
@@ -823,7 +836,7 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
         freq_track = all_freqs[k,:]
         toKeep = [~np.isnan(freq_track)][0]
         if np.sum(toKeep) <= 2 or np.min(abs(frots_rel[toKeep] - \
-                                             frot_best/model["f_K"])) > 0.03 :
+                                             frot_best/model_nonRot["f_K"])) > 0.03 :
             freqs_interp[k] = np.nan
         else :
             freqs_interp[k] = np.interp(frot_best, frots[toKeep], 
@@ -908,7 +921,7 @@ def interpolate_track_to_model_in_age(tracks, age, frot_rel=0.00,
              "ls":tracks["ls"], "ms":tracks["ms"], "n_pgs":tracks["n_pgs"],
              "Xc_min":tracks["Xc_min"], "Xc_max":tracks["Xc_max"]}
     history_age, history_Xc, history_log_Teff, history_log_L, history_M = \
-        read_MESA_history_columns(tracks["histfile"],
+        read_MESA_history_columns(tracks["histfile"], tracks["lookup_histfile"],
                                   ["star_age","center_h1","log_Teff","log_L","star_mass"],
                                   Xc_min=tracks["Xc_min"],
                                   Xc_max=tracks["Xc_max"], flip=False)
@@ -941,9 +954,11 @@ def interpolate_track_to_model_in_age(tracks, age, frot_rel=0.00,
             freq_track = freq_track[~np.isnan(freq_track)]
             spline = scint.CubicSpline(ages_noNan, freq_track)
             freqs_interp[k] = spline(age, extrapolate=False)
-    model["freqs"] = np.array(freqs_interp[~np.isnan(freqs_interp)])
+    model["freqs"] = freqs_interp #np.array(freqs_interp[~np.isnan(freqs_interp)])
+    model["lookup_ID"] = tracks["lookup_ID"]
     model["MESA_model_dir"] = tracks["MESA_model_dir"]
     model["histfile"] = tracks["histfile"]
+    model["lookup_histfile"] = tracks["lookup_histfile"]
     model["frot_rel"] = frot_rel
     model["frot"] = frot_rel * model["f_K"]
 
@@ -982,6 +997,7 @@ def Xc_to_age(tracks, Xc) :
 
     """
     history_age, history_Xc = read_MESA_history_columns(tracks["histfile"],
+                                                        tracks["lookup_histfile"],
                                                         ["star_age", "center_h1"],
                                                         Xc_min=tracks["Xc_min"],
                                                         Xc_max=tracks["Xc_max"],
@@ -1304,35 +1320,36 @@ def standardised_chi2(model, observation, exclude_splitting=False) :
 
     # Skipping the first because the chi2 contribution of the first frequency is
     # zero as we force the model frequency onto the observed frequency
+    ls_obs = observation["ls"]
+    observation_freqs_m0 = observation["freqs"]
+    observation_freqs_m0_err = observation["freqs_err"]
+    observation_n_pgs = observation["n_pgs"]
     for k in range(observation["N_m"]) :
-        l = observation["ls"][k]
-        observation_freq_m0 = observation["freqs"][k]
-        observation_freq_m0_err = observation["freqs_err"][k]
+        l = ls_obs[k]
+        observation_freq_m0 = observation_freqs_m0[k]
+        observation_freq_m0_err = observation_freqs_m0_err[k]
+        observation_n_pg = observation_n_pgs[k]
         # If the radial order is given, compute the chi2 contribution of this
         # zonal frequency using that specific radial order in the model
-        if not np.isnan(observation["n_pgs"][k]) :
-            n_pg_obs = observation["n_pgs"][k]
-            chi2 += (get_mode_frequency_model(model, l, 0, n_pg_obs) - \
+        if not np.isnan(observation_n_pg) :
+            n_pg_min = observation_n_pg
+            chi2 += (get_mode_frequency_model(model, l, 0, n_pg_min) - \
                     observation_freq_m0)**2 / observation_freq_m0_err**2
         # Otherwise, go over each radial order in the model and use the one with
         # the smallest chi2 contribution as the zonal frequency
         else :
             # Smallest chi2 of a mode with the given degree.
             # Start huge to ensure the first identity produces a smaller chi2
-            chi2_freq_min = sys.float_info.max
-            n_pg_min = 999 # Some big filler value
-            for n_pg in model["n_pgs"][(model["ls"] == l) & (model["ms"] == 0)] :
-                model_freq = get_mode_frequency_model(model, l, 0, n_pg)
-                if not np.isnan(model_freq) :
-                    chi2_freq = (model_freq - observation_freq_m0)**2 / \
-                                observation_freq_m0_err**2
-                    if chi2_freq < chi2_freq_min :
-                        chi2_freq_min = chi2_freq
-                        n_pg_min = n_pg
-            if chi2_freq_min == sys.float_info.max :
-                # No frequency of the given degree in the model!
+            mask = (model["ls"] == l) & (model["ms"] == 0)
+            n_pgs_masked = model["n_pgs"][mask]
+            freqs_masked = model["freqs"][mask]
+            try :
+                i_min = np.nanargmin(np.abs(freqs_masked - observation_freq_m0))
+            except :
                 return np.nan
-            chi2 += chi2_freq_min
+            n_pg_min = n_pgs_masked[i_min]
+            chi2 += (freqs_masked[i_min] - observation_freq_m0)**2 / \
+                                observation_freq_m0_err**2
 
         # Now we know the best n_pg, check the predicted splittings and compare
         # to available observations, unless excluded of course
@@ -1340,20 +1357,13 @@ def standardised_chi2(model, observation, exclude_splitting=False) :
             observation_splittings = observation["splittings"][k]
             observation_splittings_err = observation["splittings_err"][k]
             m = -l
-            for observation_split, observation_split_err in \
-                zip(observation_splittings, observation_splittings_err) :
-                # Skip zonal mode, already taken care of
-                if m == 0 :
-                    m += 1
-                if np.isnan(observation_split) :
-                    # Update azimuthal order
-                    m += 1
-                    continue
+            ms = np.arange(-l, l+1)
+            ms = ms[ms != 0]
+            for m, observation_split, observation_split_err in \
+                zip(ms, observation_splittings, observation_splittings_err) :
                 model_split = get_mode_splitting_model(model, l, m, n_pg_min)
                 chi2 += (model_split - observation_split)**2 / \
                         observation_split_err**2
-                # Update azimuthal order
-                m += 1
 
     return chi2
 
@@ -1395,61 +1405,57 @@ def standardised_chi2_components(model, observation) :
 
     chi2_components["freqs"] = []
     chi2_components["splittings"] = []
+    ls = observation["ls"]
+    observation_freqs_m0 = observation["freqs"]
+    observation_freqs_m0_err = observation["freqs_err"]
+    observation_splittingss = observation["splittings"]
+    observation_splittingss_err = observation["splittings_err"]
+    observation_n_pgs = observation["n_pgs"]
     for k in range(observation["N_m"]) :
-        l = observation["ls"][k]
-        observation_freq_m0 = observation["freqs"][k]
-        observation_freq_m0_err = observation["freqs_err"][k]
-        observation_splittings = observation["splittings"][k]
-        observation_splittings_err = observation["splittings_err"][k]
+        l = ls[k]
+        observation_freq_m0 = observation_freqs_m0[k]
+        observation_freq_m0_err = observation_freqs_m0_err[k]
+        observation_splittings = observation_splittingss[k]
+        observation_splittings_err = observation_splittingss_err[k]
+        observation_n_pg = observation_n_pgs[k]
+
         # If the radial order is given, compute the chi2 contribution of this
         # zonal frequency using that specific radial order in the model
-        if not np.isnan(observation["n_pgs"][k]) :
-            n_pg_obs = observation["n_pgs"][k]
-            model_freq_m0 = get_mode_frequency_model(model, l, 0, n_pg_obs)
-            chi2_components["freqs"].append((model_freq_m0 - \
-                                             observation_freq_m0)**2 / \
-                                             observation_freq_m0_err**2)
+        if not np.isnan(observation_n_pg) :
+            n_pg_min = observation_n_pg
+            chi2_freq_min = (get_mode_frequency_model(model, l, 0, n_pg_min) - \
+                            observation_freq_m0)**2 / observation_freq_m0_err**2
         # Otherwise, go over each radial order in the model and use the one with
         # the smallest chi2 contribution as the zonal frequency
         else :
             # Smallest chi2 of a mode with the given degree.
-            # Start off huge to ensure the first identity produces a smaller chi2
-            chi2_freq_min = sys.float_info.max
-            n_pg_min = 999 # Some random filler value sure to cause an error if not replaced
-            for n_pg in model["n_pgs"][(model["ls"] == l) & (model["ms"] == 0)] :
-                model_freq = get_mode_frequency_model(model, l, 0, n_pg)
-                if not np.isnan(model_freq) :
-                    chi2_freq = (model_freq - observation_freq_m0)**2 / \
-                                observation_freq_m0_err**2
-                    if chi2_freq < chi2_freq_min :
-                        chi2_freq_min = chi2_freq
-                        n_pg_min = n_pg
-            if chi2_freq_min == sys.float_info.max :
-                # No zonal frequency of the given degree in the model!
-                chi2_components["splittings"][-1].append(np.nan)
+            # Start huge to ensure the first identity produces a smaller chi2
+            mask = (model["ls"] == l) & (model["ms"] == 0)
+            n_pgs_masked = model["n_pgs"][mask]
+            freqs_masked = model["freqs"][mask]
+            try :
+                i_min = np.nanargmin(np.abs(freqs_masked - observation_freq_m0))
+            except :
                 return np.nan
-            chi2_components["freqs"].append(chi2_freq_min)
+            n_pg_min = n_pgs_masked[i_min]
+            chi2_freq_min = (freqs_masked[i_min] - observation_freq_m0)**2 / \
+                                observation_freq_m0_err**2
+        chi2_components["freqs"].append(chi2_freq_min)
 
         # Now we know the best n_pg, check the predicted splittings and compare
-        # to available observations
+        # to available observations, unless excluded of course
+        observation_splittings = observation["splittings"][k]
+        observation_splittings_err = observation["splittings_err"][k]
         m = -l
-        chi2_components["splittings"].append([])
-        for observation_split, observation_split_err in \
-            zip(observation_splittings, observation_splittings_err) :
-            # Skip zonal mode, already taken care of
-            if m == 0 :
-                m += 1
-            if np.isnan(observation_split) :
-                # Update azimuthal order
-                m += 1
-                chi2_components["splittings"][-1].append(np.nan)
-                continue
+        ms = np.arange(-l, l+1)
+        ms = ms[ms != 0]
+        for m, observation_split, observation_split_err in \
+            zip(ms, observation_splittings, observation_splittings_err) :
             model_split = get_mode_splitting_model(model, l, m, n_pg_min)
-            chi2_components["splittings"][-1].append((model_split - \
-                                                      observation_split)**2 / \
-                                                      observation_split_err**2)
-            # Update azimuthal order
-            m += 1
+            chi2 = (model_split - observation_split)**2 / \
+                    observation_split_err**2
+            chi2_components["splittings"][-1].append(chi2)
+
     return chi2_components
 
 
@@ -1457,7 +1463,7 @@ def standardised_chi2_components(model, observation) :
 ##### NAVIGATING GRID ##########################################################
 
 
-def does_track_cross_HRD_error_ellipse(tracks, observation, sigma_tol=2.) :
+def does_track_cross_HRD_error_ellipse(tracks, observation, sigma_tol=2.1) :
     """
     Check if the model is sufficiently close to the spectroscopic observations
     to be considered plausible.
@@ -1474,7 +1480,7 @@ def does_track_cross_HRD_error_ellipse(tracks, observation, sigma_tol=2.) :
     sigma_tol: float
         How many times the uncertainty the model can be removed from the
         observations
-        Defaults to 2
+        Defaults to 2.1
 
     ------- Returns -------
     tracks_cross: array of bools
@@ -1516,6 +1522,7 @@ def find_nearest_model_number(tracks, Xc) :
         central hydrogen fraction to the provided Xc
     """
     model_numbers, center_h1s = read_MESA_history_columns(tracks["histfile"],
+                                                          tracks["lookup_histfile"],
                                                           ["star_age", "center_h1"])
     # Index of closest Xc
     i = np.argmin(abs(center_h1s - Xc))

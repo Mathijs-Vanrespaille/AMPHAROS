@@ -562,6 +562,7 @@ def plot_models_and_observed_HRD(models, observation,
                        color=colours_dot[k%len(colours_dot)], s=150, zorder=3,
                        label=labels[k])
         log_Teff_history, log_L_history = read_MESA_history_columns(model["histfile"],
+                                                                    model["lookup_histfile"],
                                                                     ["log_Teff", "log_L"],
                                                                     Xc_min=model["Xc_min"],
                                                                     Xc_max=model["Xc_max"])

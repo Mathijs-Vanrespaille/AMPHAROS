@@ -9,6 +9,22 @@ from functools import partial
 ##### MISCELLANEOUS ############################################################
 
 
+def build_lookup_ID(ls, ms, n_pgs) :
+    lookup_ID = {}
+    IDs = np.column_stack((ls, ms, n_pgs))
+    for (l, m, n_pg) in np.unique(IDs, axis=0) :
+        # In case of duplicate IDs, we keep the one with the lower n_pg if it is
+        # a p-mode and the higher n_pg if it is a g-mode, i.e. the lower-order 
+        # mode. This only works if the provided n_pgs_to_include is sorted from
+        # small to large
+        if n_pg >= 0 :
+            choice = -1
+        else :
+            choice = 0
+        lookup_ID[(l, m, n_pg)] = np.where((ls==l) & (ms==m) & (n_pgs==n_pg))[0][choice]
+    return lookup_ID
+
+
 def split_line(line, sep) :
     """
     Splits a string in 2 parts.
@@ -306,9 +322,10 @@ def process_summary_file(storm_summary_path,
     steps of the model and F the number of considered rotation rates.
     Each array over time (those of length M) is sorted by Xc
     """
-    # Get the model number (and central hydrogen fraction at which MESA was meant to save; unused here)
+    # Get the model number 
+    # (and central hydrogen fraction around which MESA saved; unused here)
     mn, Xc_save = read_model_number_and_Xc_save(storm_summary_path)
-    # The real central hydrogen fraction of this MESA model and other stellar parameters
+    # The real central hydrogen fraction of this MESA model and more
     age, Xc, logT, logL = mn_lookup[mn]
 
     with h5py.File(storm_summary_path, "r") as storm_summary :
@@ -383,8 +400,8 @@ def process_summary_file(storm_summary_path,
     return track
 
 
-def read_MESA_history_column(history_file, column_name, dtype=float,
-                             Xc_min=None, Xc_max=None, flip=False) :
+def read_MESA_history_column(history_file, lookup_header, column_name, 
+                             dtype=float, Xc_min=None, Xc_max=None, flip=False) :
     """
     Read the given column from the given MESA history file
 
@@ -393,6 +410,9 @@ def read_MESA_history_column(history_file, column_name, dtype=float,
     ------- Parameters -------
     history_file: string
         Path to the history file
+    lookup_header: dict
+        A table to find the column number matching each history column name.
+        Keys are strings and values are integers. 
     column_name: string
         Name of the column in the history columns header
     dtype: numpy.dtype
@@ -421,13 +441,12 @@ def read_MESA_history_column(history_file, column_name, dtype=float,
         The selected history column, for those rows with Xc between Xc_min and
         Xc_max from small to large Xc
     """
-    history_header = np.loadtxt(history_file, skiprows=5, max_rows=1, dtype=str)
     column = np.loadtxt(history_file, skiprows=6,
-                        usecols=np.where(history_header==column_name)[0],
+                        usecols=[lookup_header[column_name]],
                         dtype=dtype)
     if (Xc_min is not None) or (Xc_max is not None) :
         Xc = np.loadtxt(history_file, skiprows=6,
-                        usecols=np.where(history_header=="center_h1")[0],
+                        usecols=[lookup_header["center_h1"]],
                         dtype=dtype)
         if Xc_min is not None :
             I_toKeep = [Xc > Xc_min][0]
@@ -445,8 +464,8 @@ def read_MESA_history_column(history_file, column_name, dtype=float,
         return column
 
 
-def read_MESA_history_columns(history_file, column_names, Xc_min=None,
-                              Xc_max=None, flip=False) :
+def read_MESA_history_columns(history_file, lookup_header, column_names, 
+                              Xc_min=None, Xc_max=None, flip=False) :
     """
     Read the given column from the given MESA history file
 
@@ -455,6 +474,9 @@ def read_MESA_history_columns(history_file, column_names, Xc_min=None,
     ------- Parameters -------
     history_file: string
         Path to the history file
+    lookup_header: dict
+        A table to find the column number matching each history column name.
+        Keys are strings and values are integers. 
     column_names: list of strings
         Names of the column in the history columns header
     Xc_min: float
@@ -480,11 +502,10 @@ def read_MESA_history_columns(history_file, column_names, Xc_min=None,
         The selected history column, for those rows with Xc between Xc_min and
         Xc_max from small to large Xc
     """
-    history_header = np.loadtxt(history_file, skiprows=5, max_rows=1, dtype=str)
-    usecols = [np.where(history_header==column_name)[0][0] for column_name in column_names]
+    usecols = [lookup_header[column_name] for column_name in column_names]
     if (Xc_min is not None) or (Xc_max is not None) :
         Xcs = np.flip(np.loadtxt(history_file, skiprows=6,
-                                 usecols=np.where(history_header=="center_h1")[0],
+                                 usecols=[lookup_header["center_h1"]],
                                  dtype=np.float32))
         if Xc_min is None :
             Xc_min = np.min(Xcs)
@@ -550,13 +571,13 @@ def read_model_parameters(parameter_file, header=True, delimiter=",") :
         parameters = np.loadtxt(parameter_file, skiprows=1, dtype=float,
                                 unpack=True, delimiter=delimiter)
         try :
-            Zs = parameters[(header == "Z") | (header == "Zini")][0]
+            Zinis = parameters[(header == "Z") | (header == "Zini")][0]
         except :
             raise KeyError("read_model_parameters: parameter file does not " \
                            "have a header or header does not contain one of " \
                            "'Z' or 'Zini' as expected.")
         try :
-            Ms = parameters[(header == "M") | (header == "Mini")][0]
+            Minis = parameters[(header == "M") | (header == "Mini")][0]
         except :
             raise KeyError("read_model_parameters: parameter file does not " \
                            "have a header or header does not contain one of " \
@@ -695,6 +716,10 @@ def read_storm_tracks(MESA_output_dir, Zini, Mini, logD, fov,
             run
         "histfile": string
             Path to the history file of this MESA model
+        "lookup_histfile": dict
+            A lookup dictionary to find the column number matching the header 
+            name of a column in the history file
+            Keys are strings, values are keys
         "betas": numpy array of floats
             The beta_nl of each mode
             Only included if add_beta is True
@@ -714,10 +739,18 @@ def read_storm_tracks(MESA_output_dir, Zini, Mini, logD, fov,
             ms_track.append(m)
             n_pgs_track.append(n_pg)
 
+    # Setting a number of paths
     folder = "Z{Z:.3f}_M{M:.2f}_logD{logD:.1f}_fov{fov:.3f}".format(Z=Zini,M=Mini,logD=logD,fov=fov)
     MESA_model_dir = "{MESA_output_dir}/{folder}/".format(MESA_output_dir=MESA_output_dir,folder=folder)
     history_file = "{MESA_model_dir}/{folder}.hist".format(MESA_model_dir=MESA_model_dir,folder=folder)
-    mn_hist,Xc_hist,age_hist,log_Teff_hist,log_L_hist = read_MESA_history_columns(history_file,
+    # Building the lookup dictionary for the column names of the history file
+    history_columnNames = np.loadtxt(history_file, skiprows=5, max_rows=1, dtype=str)
+    lookup_histfile = {
+        history_columnNames[i]: i
+        for i in range(len(history_columnNames))
+    }
+
+    mn_hist,Xc_hist,age_hist,log_Teff_hist,log_L_hist = read_MESA_history_columns(history_file, lookup_histfile, 
                                                                                   ["model_number","center_h1","star_age","log_Teff","log_L"],
                                                                                   Xc_min=Xc_min,
                                                                                   Xc_max=Xc_max)
@@ -749,34 +782,45 @@ def read_storm_tracks(MESA_output_dir, Zini, Mini, logD, fov,
     else :
         frots_rel = np.array(frots_rel_to_include)
 
+    lookup_ID = build_lookup_ID(ls_track, ms_track, n_pgs_track)
+    lookup_frot = {
+        frots_rel[i]: i
+        for i in range(len(frots_rel))
+    }
+
     all_tracks = {"ages":np.empty(M), "mns":np.empty(M),
                   "log_Teffs":np.empty(M), "log_Ls":np.empty(M),
                   "Xcs":np.empty(M), "Xc_saves":np.empty(M),
                   "Xc_min":Xc_min, "Xc_max":Xc_max,
                   "MESA_model_dir":MESA_model_dir,
                   "histfile":history_file,
+                  "lookup_histfile":lookup_histfile,
                   "ms":np.array(ms_track),
                   "ls":np.array(ls_track),
                   "n_pgs":np.array(n_pgs_track),
+                  "lookup_ID":lookup_ID,
                   "freqs":np.empty((K,F,M)),
                   "track_reliable":np.empty((K,M)),
                   "f_Ks":np.empty(M),
-                  "frots_rel":frots_rel}
+                  "frots_rel":frots_rel, 
+                  "lookup_frot":lookup_frot
+                  }
     if add_beta :
         all_tracks["betas"] = np.empty((K,M))
 
-    worker = partial(
-        process_summary_file,
-        ls_track=ls_track,
-        ms_track=ms_track,
-        n_pgs_track=n_pgs_track,
-        frots_rel_to_include=frots_rel_to_include,
-        mn_lookup=mn_lookup,
-        add_beta=add_beta,
-        MESA_model_dir=MESA_model_dir,
-    )
-    with ProcessPoolExecutor() as executor:
-        tracks = list(executor.map(worker, storm_summary_paths))
+    tracks = [
+        process_summary_file(
+            path,
+            ls_track,
+            ms_track,
+            n_pgs_track,
+            frots_rel_to_include,
+            mn_lookup,
+            add_beta,
+            MESA_model_dir
+        )
+        for path in storm_summary_paths
+    ]
 
     for j, track in enumerate(tracks):
         all_tracks["ages"][j] = track["age"]
