@@ -289,10 +289,8 @@ def find_age_cross_and_frot(grid, observation, results, n_pg_main,
     # Getting the best model for each track. Parallelised
     models_best_frot = []
     with ProcessPoolExecutor() as executor:
-        Is = []
         for i, model_best_frot in enumerate(executor.map(find_model_best_frot_wrapper, args)):
             models_best_frot.append(model_best_frot)
-            Is.append(i)
     # for i,tracks in enumerate(grid["all_tracks"]) :
     #     if not does_track_cross_HRD_error_ellipse(tracks, observation) :
     #         # Fill with NaNs
@@ -328,8 +326,8 @@ def find_age_cross_and_frot(grid, observation, results, n_pg_main,
     #         model_best_frot = interpolate_model_in_frot_with_GYRE(observation,
     #                                                               model_nonRot)
         # Assembling the results
-        models_best_frot_sorted = [models_best_frot[i] for i in Is]
-        for i,model_best_frot in enumerate(models_best_frot_sorted) :
+        # models_best_frot_sorted = [models_best_frot[i] for i in Is]
+        for i,model_best_frot in enumerate(models_best_frot) :
             results["ages_cross"][i] = model_best_frot["age"]
             results["Xcs_cross"][i] = model_best_frot["Xc"]
             results["frots_best"][i] = model_best_frot["frot_best"]
@@ -367,30 +365,31 @@ def compute_chi2s(observation, results, exclude_splitting_from_chi2=False) :
     """
     # Number of degrees of freedom when including all observations
     DoF_withSplitting = max((number_observations(observation, exclude_splitting=False) - 5),1)
-    chi2s, chi2s_reduced = [], []
+    models = results["models"]
+    N = len(models)
+    chi2s, chi2s_reduced = np.empty(N), np.empty(N)
     if exclude_splitting_from_chi2 :
         # Number of degrees of freedom when not counting the rotational
         # splittings
         DoF_withoutSplitting = max((number_observations(observation, exclude_splitting=True) - 4),1)
-        chi2s_withSplitting, chi2s_withSplitting_reduced = [], []
-        for model in results["models"] :
+        chi2s_withSplitting, chi2s_withSplitting_reduced = np.empty(N), np.empty(N)
+        for i,model in enumerate(models) :
             chi2 = standardised_chi2(model, observation, exclude_splitting=True)
-            chi2s.append(chi2)
-            chi2s_reduced.append(chi2 / DoF_withoutSplitting)
-            chi2 = standardised_chi2(model, observation,
-                                     exclude_splitting=False)
-            chi2s_withSplitting.append(chi2)
-            chi2s_withSplitting_reduced.append(chi2 / DoF_withSplitting)
-        results["chi2s_withSplitting"] = np.array(chi2s_withSplitting)
-        results["chi2s_withSplitting_reduced"] = np.array(chi2s_withSplitting_reduced)
+            chi2s[i] = chi2
+            chi2s_reduced[i] = chi2 / DoF_withSplitting
+
+            chi2_withSplitting = standardised_chi2(model, observation,
+                                                   exclude_splitting=False)
+            chi2s_withSplitting[i] = chi2_withSplitting
+        results["chi2_withSplitting"] = chi2s_withSplitting
+        results["chi2s_withSplitting_reduced"] = chi2s_withSplitting / DoF_withSplitting
     else :
-        for model in results["models"] :
+        for i,model in enumerate(models) :
             chi2 = standardised_chi2(model, observation,
                                      exclude_splitting=False)
-            chi2s.append(chi2)
-            chi2s_reduced.append(chi2 / DoF_withSplitting)
-    results["chi2s"] = np.array(chi2s)
-    results["chi2s_reduced"] = np.array(chi2s_reduced)
+            chi2s[i] = chi2
+    results["chi2s"] = chi2s
+    results["chi2s_reduced"] = chi2s / DoF_withSplitting
 
 
 def find_best_chi2_all(observation, results, exclude_splitting_from_chi2=False) :
