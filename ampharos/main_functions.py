@@ -363,33 +363,52 @@ def compute_chi2s(observation, results, exclude_splitting_from_chi2=False) :
         function
         Defaults to False
     """
+    # Prepping
+    models = results["models"]
+    modelled = results["was_modelled"]
+    argsFalse = [(observation, model, was_modelled, False)
+            for model, was_modelled in zip(models, modelled)]
+    N = len(models)
+    chi2s = np.empty(N)
+
+    # Execution: computing all chi2s if modelled. Parallelised
+    with ProcessPoolExecutor() as executor:
+        for i, chi2 in enumerate(executor.map(standardised_chi2_wrapper, 
+                                              argsFalse)):
+            chi2s[i] = chi2
+
+    if exclude_splitting_from_chi2 :
+        # More prepping
+        argsTrue = [(model, was_modelled, observation, True)
+                    for model, was_modelled in zip(models, modelled)]
+        chi2s_withoutSplitting = np.empty(N)
+
+        # Execution: computing all chi2s if modelled. Parallelised
+        with ProcessPoolExecutor() as executor:
+            for i, chi2 in enumerate(executor.map(standardised_chi2_wrapper, 
+                                                  argsTrue)):
+                chi2s_withoutSplitting[i] = chi2
+
     # Number of degrees of freedom when including all observations
     DoF_withSplitting = max((number_observations(observation, exclude_splitting=False) - 5),1)
-    models = results["models"]
-    N = len(models)
-    chi2s, chi2s_reduced = np.empty(N), np.empty(N)
-    if exclude_splitting_from_chi2 :
+    # Assembling the results into the results dictionary, depending on whether
+    # splittings are being included in the cost function
+    if not exclude_splitting_from_chi2 :
+        results["chi2s"] = chi2s
+        results["chi2s_reduced"] = chi2s / DoF_withSplitting
+    else :
+        results["chi2_withSplitting"] = chi2s
+        results["chi2s_withSplitting_reduced"] = chi2s / DoF_withSplitting
         # Number of degrees of freedom when not counting the rotational
         # splittings
         DoF_withoutSplitting = max((number_observations(observation, exclude_splitting=True) - 4),1)
-        chi2s_withSplitting, chi2s_withSplitting_reduced = np.empty(N), np.empty(N)
-        for i,model in enumerate(models) :
-            chi2 = standardised_chi2(model, observation, exclude_splitting=True)
-            chi2s[i] = chi2
-            chi2s_reduced[i] = chi2 / DoF_withSplitting
+        results["chi2"] = chi2s_withoutSplitting
+        results["chi2s_reduced"] = chi2s_withoutSplitting / DoF_withSplitting
 
-            chi2_withSplitting = standardised_chi2(model, observation,
-                                                   exclude_splitting=False)
-            chi2s_withSplitting[i] = chi2_withSplitting
-        results["chi2_withSplitting"] = chi2s_withSplitting
-        results["chi2s_withSplitting_reduced"] = chi2s_withSplitting / DoF_withSplitting
-    else :
-        for i,model in enumerate(models) :
-            chi2 = standardised_chi2(model, observation,
-                                     exclude_splitting=False)
-            chi2s[i] = chi2
-    results["chi2s"] = chi2s
-    results["chi2s_reduced"] = chi2s / DoF_withSplitting
+
+# Only here because ProcessPoolExecutor wants a function with only one argument
+def standardised_chi2_wrapper(args):
+    return standardised_chi2(*args)
 
 
 def find_best_chi2_all(observation, results, exclude_splitting_from_chi2=False) :
