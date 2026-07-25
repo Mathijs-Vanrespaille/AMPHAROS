@@ -327,6 +327,8 @@ def plot_all_chi2_in_HRD(results, observation, n_pg_main,
     """
     Plot a Hertzsprung-Russell diagram showing the model matching the first
     observed frequency of each evolutionary track, coloured by their chi-square.
+    Only models of evolutionary tracks that cross the observed 2sigma error 
+    ellipse on the HRD are plotted.  
     The observations are shown in black, alongside the best model in the set of
     provided results in cyan, if requested, and the statistical model in purple,
     if requested. The p-mode instability strip of Burssens et al. (2020) is
@@ -401,6 +403,10 @@ def plot_all_chi2_in_HRD(results, observation, n_pg_main,
     log_Teffs = np.array([model["log_Teff"] for model in results["models"]])
     log_Ls = np.array([model["log_L"] for model in results["models"]])
     chi2s = np.array(results["chi2s"])
+    modelled = np.array([model["was_modelled"] for model in results["models"]], dtype=bool)
+    log_Teffs = log_Teffs[modelled]
+    log_Ls = log_Ls[modelled]
+    chi2s = chi2s[modelled]
 
     if log :
         cols = np.log10(chi2s)
@@ -434,7 +440,7 @@ def plot_all_chi2_in_HRD(results, observation, n_pg_main,
                        color="cyan", s=150, zorder=3, label="best model")
 
     if hollow_spectro_incompatible :
-        compatible = results["spectro_compatible"]
+        compatible = results["spectro_compatible"][modelled]
         cmap = plt.get_cmap(colourmap)
         norm = plt.Normalize(cmin, cmax)
         ax.scatter(log_Teffs[~compatible], log_Ls[~compatible],
@@ -676,18 +682,30 @@ def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True
     Minis = np.array(grid["Minis"])
     logDs = np.array(grid["logDs"])
     fovs = np.array(grid["fovs"])
-    index = results["best_model_index"]
+    if show_best_model :
+        index = results["best_model_index"]
+        chi2_best = chi2s[index]
+        Zini_best = Zinis[index]
+        Mini_best = Minis[index]
+        logD_best = logDs[index]
+        fov_best = fovs[index]
+    modelled = np.array(results["was_modelled"])
+    chi2s = chi2s[modelled]
+    Zinis = Zinis[modelled]
+    Minis = Minis[modelled]
+    logDs = logDs[modelled]
+    fovs = fovs[modelled]
 
     ax = axs[0,0]
     if hollow_spectro_incompatible :
-        compatible = results["spectro_compatible"]
+        compatible = results["spectro_compatible"][modelled]
         ax.scatter(Zinis[~compatible], chi2s[~compatible], facecolor="none",
                    color="blue")
         ax.scatter(Zinis[compatible], chi2s[compatible], color="blue")
     else :
         ax.scatter(Zinis, chi2s, color="blue")
     if show_best_model and not type(index) == float :
-        ax.scatter(Zinis[index], chi2s[index], marker="*", color="cyan", s=150,
+        ax.scatter(Zini_best, chi2_best, marker="*", color="cyan", s=150,
                    zorder=3, label="best model")
     if show_statistical_model :
         statistical_model = results["statistical_model"]
@@ -703,14 +721,13 @@ def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True
 
     ax = axs[0,1]
     if hollow_spectro_incompatible :
-        compatible = results["spectro_compatible"]
         ax.scatter(Minis[~compatible], chi2s[~compatible], facecolor="none",
                    color="blue")
         ax.scatter(Minis[compatible], chi2s[compatible], color="blue")
     else :
         ax.scatter(Minis, chi2s, color="blue")
     if show_best_model and not type(index) == float :
-        ax.scatter(Minis[index], chi2s[index], marker="*", color="cyan", s=150,
+        ax.scatter(Mini_best, chi2_best, marker="*", color="cyan", s=150,
                    zorder=3, label="best model")
     if show_statistical_model :
         statistical_model = results["statistical_model"]
@@ -733,7 +750,7 @@ def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True
     else :
         ax.scatter(logDs, chi2s, color="blue")
     if show_best_model and not type(index) == float :
-        ax.scatter(logDs[index], chi2s[index], marker="*", color="cyan", s=150,
+        ax.scatter(logD_best, chi2_best, marker="*", color="cyan", s=150,
                    zorder=3, label="best model")
     if show_statistical_model :
         mean = statistical_model["logD_mean"]
@@ -754,7 +771,7 @@ def plot_chi2_against_grid_params(grid, results, n_pg_main, show_best_model=True
     else :
         ax.scatter(fovs, chi2s, color="blue")
     if show_best_model and not type(index) == float :
-        ax.scatter(fovs[index], chi2s[index], marker="*", color="cyan", s=150,
+        ax.scatter(fov_best, chi2_best, marker="*", color="cyan", s=150,
                    zorder=3, label="best model")
     if show_statistical_model :
         mean = statistical_model["fov_mean"]
@@ -845,12 +862,13 @@ def plot_chi2_against_model_params(results, show_best_model=True,
     """
     fig, axs = plt.subplots(1, 3, figsize=(15, 5))
 
-    chi2s = np.array(results["chi2s"])
-    Xcs_cross = np.array(results["Xcs_cross"])
-    ages_cross = np.array(results["ages_cross"])
-    frots_best = np.array(results["frots_best"])
+    modelled = np.array(results["was_modelled"], dtype=bool)
+    chi2s = np.array(results["chi2s"])[modelled]
+    Xcs_cross = np.array(results["Xcs_cross"])[modelled]
+    ages_cross = np.array(results["ages_cross"])[modelled]
+    frots_best = np.array(results["frots_best"])[modelled]
     if hollow_spectro_incompatible :
-        compatible = np.array(results["spectro_compatible"])
+        compatible = np.array(results["spectro_compatible"])[modelled]
 
     ax = axs[0]
     if hollow_spectro_incompatible :
@@ -1013,11 +1031,12 @@ def plot_chi2_coloured_grid_params(grid, results, show_best_model=True,
 
     fig, axs = plt.subplots(2, 3, figsize=(15,10))
 
-    chi2s = np.array(results["chi2s"])
-    Zinis = np.array(grid["Zinis"])
-    Minis = np.array(grid["Minis"])
-    logDs = np.array(grid["logDs"])
-    fovs = np.array(grid["fovs"])
+    modelled = np.array(results["was_modelled"], dtype=bool)
+    chi2s = np.array(results["chi2s"])[modelled]
+    Zinis = np.array(grid["Zinis"])[modelled]
+    Minis = np.array(grid["Minis"])[modelled]
+    logDs = np.array(grid["logDs"])[modelled]
+    fovs = np.array(grid["fovs"])[modelled]
 
     index = results["best_model_index"]
     if show_best_model and not type(index) == float :
@@ -1044,7 +1063,7 @@ def plot_chi2_coloured_grid_params(grid, results, show_best_model=True,
     fovs = fovs[I]
 
     if only_plot_compatible :
-        compatible = np.array(results["spectro_compatible"])[I]
+        compatible = np.array(results["spectro_compatible"])[modelled][I]
         chi2s = chi2s[compatible]
         Zinis = Zinis[compatible]
         Minis = Minis[compatible]
@@ -1269,6 +1288,13 @@ def plot_grid_params_chi2_corner(grid, results, show_best_model=True,
                      statistical_model["logD_std"],
                      statistical_model["fov_std"]]
 
+    modelled = np.array(results["was_modelled"], dtype=bool)
+    chi2s = chi2s[modelled]
+    Zinis = Zinis[modelled]
+    Minis = Minis[modelled]
+    logDs = logDs[modelled]
+    fovs = fovs[modelled]
+
     I_toKeep = ~np.isnan(chi2s)
     chi2s = chi2s[I_toKeep]
     Zinis = Zinis[I_toKeep]
@@ -1287,7 +1313,7 @@ def plot_grid_params_chi2_corner(grid, results, show_best_model=True,
             ax = axs[j][i]
             if i == j :
                 if hollow_spectro_incompatible :
-                    compatible = results["spectro_compatible"][I]
+                    compatible = results["spectro_compatible"][modelled][I]
                     ax.scatter(data[i][~compatible], chi2s[~compatible],
                                fc='none', lw=1, zorder=1, color="blue", s=20)
                     ax.scatter(data[i][compatible], chi2s[compatible], zorder=1,
@@ -1343,7 +1369,7 @@ def plot_grid_params_chi2_corner(grid, results, show_best_model=True,
                 ax.set_xlabel(labels[i], fontsize=10)
                 ax.set_ylabel(labels[j], fontsize=10)
 
-    fig.set_title(title, fontsize=12)
+    fig.suptitle(title, fontsize=12)
 
     plt.tight_layout()
 
@@ -1410,18 +1436,19 @@ def plot_model_params_histograms(results, age_log=False,
         Array of three Axes object encapsulating all elements of this plot
 
     """
-
     fig, axs = plt.subplots(1, 3, figsize=(15,5))
+
+    modelled = results["was_modelled"]
 
     ax = axs[0]
     if hollow_spectro_incompatible :
         compatible = results["spectro_compatible"]
-        (n, bins, patches) = ax.hist(results["Xcs_cross"], bins=50, fill=False,
-                                     color="navy")
+        (n, bins, patches) = ax.hist(results["Xcs_cross"][modelled], 
+                                     bins=50, fill=False, color="navy")
         ax.hist(results["Xcs_cross"][compatible], bins=bins, fill=True,
                 color="navy")
     else :
-        ax.hist(results["Xcs_cross"], bins=50, color="navy")
+        ax.hist(results["Xcs_cross"][modelled], bins=50, color="navy")
     ax.set_xlabel("Xc", fontsize=10)
     ax.set_ylabel("count", fontsize=10)
     ax.axvline(results["best_model"]["Xc"], linestyle='dashed', color='cyan')
@@ -1437,10 +1464,10 @@ def plot_model_params_histograms(results, age_log=False,
         t_best = results["best_model"]["age"]
         label = "age [yr]"
     if hollow_spectro_incompatible :
-        (n, bins, patches) = ax.hist(t, bins=50, fill=False, color="navy")
+        (n, bins, patches) = ax.hist(t[modelled], bins=50, fill=False, color="navy")
         ax.hist(t[compatible], bins=bins, fill=True, color="navy")
     else :
-        ax.hist(t, bins=50, color="navy")
+        ax.hist(t[modelled], bins=50, color="navy")
     ax.axvline(t_best, linestyle='dashed', color='cyan')
     ax.set_xlabel(label, fontsize=10)
     ax.set_ylabel("count", fontsize=10)
@@ -1449,12 +1476,12 @@ def plot_model_params_histograms(results, age_log=False,
 
     ax = axs[2]
     if hollow_spectro_incompatible :
-        (n, bins, patches) = ax.hist(results["frots_best"], bins=50, fill=False,
+        (n, bins, patches) = ax.hist(results["frots_best"][modelled], bins=50, fill=False,
                                      color="navy")
         ax.hist(results["frots_best"][compatible], bins=bins, fill=True,
                 color="navy")
     else :
-        ax.hist(results["frots_best"], bins=50, color="navy")
+        ax.hist(results["frots_best"][modelled], bins=50, color="navy")
     ax.set_xlabel(r"$f_\mathrm{rot}$ [c/d]", fontsize=10)
     ax.set_ylabel("count", fontsize=10)
     ax.minorticks_on()
@@ -1552,9 +1579,16 @@ def plot_Xc_grid_params(grid, results, show_best_model=True,
         fov_mean = statistical_model["fov_mean"]
         fov_std = statistical_model["fov_std"]
 
+    modelled = np.array(results["was_modelled"], dtype=bool)
+    Xcs = results["Xcs_cross"][modelled]
+    Zinis = grid["Zinis"][modelled]
+    Minis = grid["Minis"][modelled]
+    logDs = grid["logDs"][modelled]
+    fovs = grid["fovs"][modelled]
+
     ax = axs[0,0]
     if hollow_spectro_incompatible :
-        compatible = results["spectro_compatible"]
+        compatible = results["spectro_compatible"][modelled]
         ax.scatter(Zinis[~compatible], Xcs[~compatible], facecolor="none",
                    edgecolor="blue")
         ax.scatter(Zinis[compatible], Xcs[compatible], color="blue")
@@ -1572,7 +1606,6 @@ def plot_Xc_grid_params(grid, results, show_best_model=True,
 
     ax = axs[0,1]
     if hollow_spectro_incompatible :
-        compatible = results["spectro_compatible"]
         ax.scatter(Minis[~compatible], Xcs[~compatible], facecolor="none",
                    edgecolor="blue")
         ax.scatter(Minis[compatible], Xcs[compatible], color="blue")
@@ -1590,7 +1623,6 @@ def plot_Xc_grid_params(grid, results, show_best_model=True,
 
     ax = axs[1,0]
     if hollow_spectro_incompatible :
-        compatible = results["spectro_compatible"]
         ax.scatter(logDs[~compatible], Xcs[~compatible], facecolor="none",
                    color="blue")
         ax.scatter(logDs[compatible], Xcs[compatible], color="blue")
@@ -1610,7 +1642,6 @@ def plot_Xc_grid_params(grid, results, show_best_model=True,
 
     ax = axs[1,1]
     if hollow_spectro_incompatible :
-        compatible = results["spectro_compatible"]
         ax.scatter(fovs[~compatible], Xcs[~compatible], facecolor="none",
                    color="blue")
         ax.scatter(fovs[compatible], Xcs[compatible], color="blue")
