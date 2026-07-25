@@ -328,7 +328,8 @@ def find_age_cross_and_frot(grid, observation, results, n_pg_main,
     #         model_best_frot = interpolate_model_in_frot_with_GYRE(observation,
     #                                                               model_nonRot)
         # Assembling the results
-        for i,model_best_frot in enumerate(models_best_frot[Is]) :
+        models_best_frot_sorted = [models_best_frot[i] for i in Is]
+        for i,model_best_frot in enumerate(models_best_frot_sorted) :
             results["ages_cross"][i] = model_best_frot["age"]
             results["Xcs_cross"][i] = model_best_frot["Xc"]
             results["frots_best"][i] = model_best_frot["frot_best"]
