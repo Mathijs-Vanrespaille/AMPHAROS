@@ -332,7 +332,7 @@ def compute_chi2s(observation, results, exclude_splitting_from_chi2=False) :
     # Prepping
     models = results["models"]
     modelled = results["was_modelled"]
-    argsFalse = [(observation, model, was_modelled, False)
+    argsFalse = [(model, was_modelled, observation, False)
             for model, was_modelled in zip(models, modelled)]
     N = len(models)
     chi2s = np.empty(N)
@@ -754,8 +754,6 @@ def add_history_results(grid, results) :
 
         interp_cols = interpolate_history_columns_in_age(tracks, age_cross,
                                                          ["mass_conv_core", "log_R", "log_g", "Asymptotic_dP"])
-        print("interp_cols.shape", interp_cols.shape)
-        print("interp_cols", interp_cols)
         M_cc, log_R, log_g, Pi0 = interp_cols
         Ms_cc[i] = M_cc
         log_Rs[i] = log_R
