@@ -473,7 +473,7 @@ def find_model_best_frot(tracks, n_pg_main, observation, frots_rel, use_GYRE) :
             model_best_frot[key] = np.nan
         model_best_frot["was_modelled"] = False # Track that we did not model this
         model_best_frot["in_statistical_model"] = False 
-        model_best_frot["in_statistical_model"] = False 
+        model_best_frot["spectro_compatible"] = False 
         return model_best_frot
 
     if not use_GYRE : # When using StORM as recommended
