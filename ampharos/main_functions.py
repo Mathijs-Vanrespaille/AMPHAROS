@@ -12,6 +12,7 @@ from .visualisation import *
 import pandas as pd
 import numpy as np
 from ast import literal_eval
+from concurrent.futures import ProcessPoolExecutor
 
 
 ##### Starting up ################################################################
@@ -265,60 +266,82 @@ def find_age_cross_and_frot(grid, observation, results, n_pg_main,
         the StORM grid.
 
     """
+    # Prepping
     N = len(grid["Zinis"])
     results["ages_cross"] = np.empty(N)
     results["Xcs_cross"] = np.empty(N)
     results["frots_best"] = np.empty(N)
     results["frots_rel_best"] = np.empty(N)
-    results["models"] = np.empty(N)
-    results["spectro_compatible"] = np.empty(N)
-    results["in_statistical_model"] = np.empty(N)
+    results["models"] = []
+    results["spectro_compatible"] = np.empty(N, dtype=bool)
+    results["in_statistical_model"] = np.empty(N, dtype=bool)
+    results["was_modelled"] = np.empty(N, dtype=bool)
     results["n_pg_main"] = n_pg_main
-    results["was_modelled"] = np.empty(N)
-    for i,tracks in enumerate(grid["all_tracks"]) :
-        if not does_track_cross_HRD_error_ellipse(tracks, observation) :
-            # Fill with NaNs
-            for key in ("ages_cross", "Xcs_cross", "frots_best",
-                        "spectro_compatible", "in_statistical_model") :
-                results[key] = np.nan
-            results["was_modelled"][i] = False # Track we did not model this
-            continue
 
-        results["was_modelled"][i] = True
-        if len(frots_rel_to_include) == 0 :
-            frots_rel = tracks["frots_rel"]
-        else :
-            frots_rel = frots_rel_to_include
-        if not use_GYRE : # When using StORM as recommended
-            models = []
-            for frot_rel in frots_rel :
-                age_cross = find_age_cross_zonal_mode(tracks, n_pg_main,
-                                                      observation["freqs"][0],
-                                                      observation["ls"][0],
-                                                      frot_rel=frot_rel)
-                models.append(interpolate_track_to_model_in_age(tracks,
-                                                                age_cross,
-                                                                frot_rel=frot_rel,
-                                                                add_beta=False))
-            model_best_frot = interpolate_models_in_frot_with_StORM(observation,
-                                                                       models)
-        else :
-            age_cross = find_age_cross_zonal_mode(tracks, n_pg_main,
-                                                  observation["freqs"][0],
-                                                  observation["ls"][0],
-                                                  frot_rel=0.0)
-            model_nonRot = interpolate_track_to_model_in_age(tracks, age_cross,
-                                                             frot_rel=0.0,
-                                                             add_beta=True)
-            model_best_frot = interpolate_model_in_frot_with_GYRE(observation,
-                                                                  model_nonRot)
-        results["ages_cross"][i] = model_best_frot["age"]
-        results["Xcs_cross"][i] = model_best_frot["Xc"]
-        results["frots_best"][i] = model_best_frot["frot_best"]
-        results["frots_rel_best"][i] = model_best_frot["frot_rel_best"]
-        results["models"][i] = model_best_frot
-        results["spectro_compatible"][i] = is_model_compatible_with_spectroscopy(model_best_frot, observation, sigma_tol=2.)
-        results["in_statistical_model"][i] = is_model_compatible_with_spectroscopy(model_best_frot, observation, sigma_tol=2.)
+    if len(frots_rel_to_include) == 0 :
+        frots_rel = grid["all_tracks"][0]["frots_rel"]
+    else :
+        frots_rel = frots_rel_to_include
+        
+    args = [(tracks, n_pg_main, observation, frots_rel, use_GYRE)
+            for tracks in grid["all_tracks"]]
+
+    # Getting the best model for each track. Parallelised
+    models_best_frot = []
+    with ProcessPoolExecutor() as executor:
+        Is = []
+        for i, model_best_frot in enumerate(executor.map(find_model_best_frot_wrapper, args)):
+            models_best_frot.append(model_best_frot)
+            Is.append(i)
+    # for i,tracks in enumerate(grid["all_tracks"]) :
+    #     if not does_track_cross_HRD_error_ellipse(tracks, observation) :
+    #         # Fill with NaNs
+    #         for key in ("ages_cross", "Xcs_cross", "frots_best",
+    #                     "spectro_compatible", "in_statistical_model") :
+    #             results[key] = np.nan
+    #         results["was_modelled"][i] = False # Track that we did not model this
+    #         continue
+
+    #     results["was_modelled"][i] = True
+
+    #     if not use_GYRE : # When using StORM as recommended
+    #         models = []
+    #         for frot_rel in frots_rel :
+    #             age_cross = find_age_cross_zonal_mode(tracks, n_pg_main,
+    #                                                   observation["freqs"][0],
+    #                                                   observation["ls"][0],
+    #                                                   frot_rel=frot_rel)
+    #             models.append(interpolate_track_to_model_in_age(tracks,
+    #                                                             age_cross,
+    #                                                             frot_rel=frot_rel,
+    #                                                             add_beta=False))
+    #         model_best_frot = interpolate_models_in_frot_with_StORM(observation,
+    #                                                                    models)
+    #     else :
+    #         age_cross = find_age_cross_zonal_mode(tracks, n_pg_main,
+    #                                               observation["freqs"][0],
+    #                                               observation["ls"][0],
+    #                                               frot_rel=0.0)
+    #         model_nonRot = interpolate_track_to_model_in_age(tracks, age_cross,
+    #                                                          frot_rel=0.0,
+    #                                                          add_beta=True)
+    #         model_best_frot = interpolate_model_in_frot_with_GYRE(observation,
+    #                                                               model_nonRot)
+        # Assembling the results
+        for i,model_best_frot in enumerate(models_best_frot[Is]) :
+            results["ages_cross"][i] = model_best_frot["age"]
+            results["Xcs_cross"][i] = model_best_frot["Xc"]
+            results["frots_best"][i] = model_best_frot["frot_best"]
+            results["frots_rel_best"][i] = model_best_frot["frot_rel_best"]
+            results["models"].append(model_best_frot)
+            results["spectro_compatible"][i] = model_best_frot["spectro_compatible"]
+            results["in_statistical_model"][i] = model_best_frot["in_statistical_model"]
+            results["was_modelled"][i] = model_best_frot["was_modelled"]
+
+
+# Only here because ProcessPoolExecutor wants a function with only one argument
+def find_model_best_frot_wrapper(args) :
+    return find_model_best_frot(*args)
 
 
 def compute_chi2s(observation, results, exclude_splitting_from_chi2=False) :
@@ -340,7 +363,6 @@ def compute_chi2s(observation, results, exclude_splitting_from_chi2=False) :
         Whether to not include rotational splitting terms in the chi2 cost
         function
         Defaults to False
-
     """
     # Number of degrees of freedom when including all observations
     DoF_withSplitting = max((number_observations(observation, exclude_splitting=False) - 5),1)
@@ -395,27 +417,72 @@ def find_best_chi2_all(observation, results, exclude_splitting_from_chi2=False) 
         Whether to not include rotational splitting terms in the chi2 cost
         function
         Defaults to False
-
     """
     compute_chi2s(observation, results,
                   exclude_splitting_from_chi2=exclude_splitting_from_chi2)
+    # There's at least one model within the 2sigma error ellipse on the HRD
     if not np.sum(results["spectro_compatible"]) == 0 :
-        # At least one result is compatible with observed L and Teff within
-        # 2sigma
-        results["chi2_best"] = np.nanmin(results["chi2s"][results["spectro_compatible"]])
-        results["best_model_index"] = np.where(results["spectro_compatible"])[0][np.nanargmin(results["chi2s"][results["spectro_compatible"]])]
-        results["best_model"] = results["models"][results["best_model_index"]]
-        assert results["chi2s"][results["best_model_index"]] == results["chi2_best"]
+        spectro_compatible = results["spectro_compatible"]
+        imin = np.nanargmin(results["chi2s"][spectro_compatible])
+        results["chi2_best"] = results["chi2s"][spectro_compatible][imin]
+        best_model_index = np.where(spectro_compatible)[0][imin]
+        results["best_model_index"] = best_model_index
+        results["best_model"] = results["models"][best_model_index]
+        assert results["chi2s"][best_model_index] == results["chi2_best"]
+    # No models in agreement with the Teff and L constraints, but at least
+    # some of them were actually modelled. Find the least bad model among these.
     elif not np.isnan(results["chi2s"]).all() :
-        results["best_model_index"] = np.nanargmin(results["chi2s"])
-        results["best_model"] = results["models"][results["best_model_index"]]
-        results["chi2_best"] = results["chi2s"][results["best_model_index"]]
-        assert results["chi2s"][results["best_model_index"]] == results["chi2_best"]
+        best_model_index = np.nanargmin(results["chi2s"])
+        results["best_model_index"] = best_model_index
+        results["best_model"] = results["models"][best_model_index]
+        results["chi2_best"] = results["chi2s"][best_model_index]
+        assert results["chi2s"][best_model_index] == results["chi2_best"]
+    # Not one track was properly modelled
     else :
         results["best_model_index"] = np.nan
         results["best_model"] = np.nan
         results["chi2_best"] = np.nan
         print("All chi2 are NaN! No useable model was found!")
+
+
+def find_model_best_frot(tracks, n_pg_main, observation, frots_rel, use_GYRE) :
+    if not does_track_cross_HRD_error_ellipse(tracks, observation) :
+        # Fill with NaNs
+        model_best_frot = {}
+        for key in ("ages_cross", "Xcs_cross", "frots_best",
+                    "spectro_compatible", "in_statistical_model") :
+            model_best_frot[key] = np.nan
+        model_best_frot["was_modelled"] = False # Track that we did not model this
+        model_best_frot["in_statistical_model"] = False 
+        model_best_frot["in_statistical_model"] = False 
+        return model_best_frot
+
+    if not use_GYRE : # When using StORM as recommended
+        models = []
+        for frot_rel in frots_rel :
+            age_cross = find_age_cross_zonal_mode(tracks, n_pg_main,
+                                                  observation["freqs"][0],
+                                                  observation["ls"][0],
+                                                  frot_rel=frot_rel)
+            models.append(interpolate_track_to_model_in_age(tracks, age_cross,
+                                                            frot_rel=frot_rel,
+                                                            add_beta=False))
+        model_best_frot = interpolate_models_in_frot_with_StORM(observation,
+                                                                models)
+    else :
+        age_cross = find_age_cross_zonal_mode(tracks, n_pg_main,
+                                                observation["freqs"][0],
+                                                observation["ls"][0],
+                                                frot_rel=0.0)
+        model_nonRot = interpolate_track_to_model_in_age(tracks, age_cross,
+                                                         frot_rel=0.0,
+                                                         add_beta=True)
+        model_best_frot = interpolate_model_in_frot_with_GYRE(observation,
+                                                              model_nonRot)
+    model_best_frot["was_modelled"] = True
+    model_best_frot["spectro_compatible"] = is_model_compatible_with_spectroscopy(model_best_frot, observation, sigma_tol=2.) 
+    model_best_frot["in_statistical_model"] = is_model_compatible_with_spectroscopy(model_best_frot, observation, sigma_tol=2.) 
+    return model_best_frot
 
 
 ##### Figuring out n_pg ########################################################
@@ -674,6 +741,8 @@ def add_history_results(grid, results) :
 
         interp_cols = interpolate_history_columns_in_age(tracks, age_cross,
                                                          ["mass_conv_core", "log_R", "log_g", "Asymptotic_dP"])
+        print("interp_cols.shape", interp_cols.shape)
+        print("interp_cols", interp_cols)
         M_cc, log_R, log_g, Pi0 = interp_cols
         Ms_cc[i] = M_cc
         log_Rs[i] = log_R
@@ -1038,7 +1107,7 @@ def make_statistical_model(grid, results) :
                         results["log_gs"], results["Ms_cc"],
                         results["Ms_cc"]/results["Ms"], results["Pi0s"]])
     columns = np.array(columns)[:,toInclude]
-    names = ["Z", "Mini", "logD", "fov", "age", "log_age", "Xc", "frot", 
+    names = ["Zini", "Mini", "logD", "fov", "age", "log_age", "Xc", "frot", 
              "frot_rel", "fK", "vrot", "log_Teff", "log_L", "M", "R", "log_R", 
              "log_g", "Mcc", "Mcc_over_M", "Pi0"]
 
