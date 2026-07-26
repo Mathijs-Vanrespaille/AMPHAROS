@@ -118,19 +118,20 @@ def initialise_grid(MESA_output_dir, parameter_file, frots_rel_to_include=[],
     Zinis, Minis, logDs, fovs = read_model_parameters(parameter_file, 
                                                       header=header,
                                                       delimiter=delimiter)
-    grid = {"Zinis":Zinis, "Minis":Minis, "logDs":logDs, "fovs":fovs,
-            "frots_rel":frots_rel_to_include, "all_tracks":[],
-            "MESA_output_dir":MESA_output_dir}
     # Prepping
     N = len(Zinis)
-    
+    grid = {"Zinis":Zinis, "Minis":Minis, "logDs":logDs, "fovs":fovs,
+            "Xcinis":np.empty(N), "frots_rel":frots_rel_to_include, 
+            "all_tracks":[], "MESA_output_dir":MESA_output_dir}
+
     args = [(MESA_output_dir, Zini, Mini, logD, fov, frots_rel_to_include,
             Xc_min, Xc_max, ls_to_include, n_pgs_to_include, add_beta)
             for Zini, Mini, logD, fov in zip(Zinis, Minis, logDs, fovs)]
     
     with ProcessPoolExecutor() as executor:
-        for i, track in enumerate(executor.map(read_storm_tracks_wrapper, args)):
+        for i, (track, Xcini) in enumerate(executor.map(read_storm_tracks_wrapper, args)):
             grid["all_tracks"].append(track)
+            grid["Xcinis"][i] = Xcini
             print(f"Finished reading {i+1}/{N}")
     if len(frots_rel_to_include) == 0 :
         # Note that this assumes all the StORM summaries contain the same
@@ -1251,7 +1252,7 @@ def number_observations(observation, exclude_splitting=False) :
     return Nobs
 
 
-def reduced_chi2(model, observation) :
+def reduced_chi2(model, was_modelled, observation, exclude_splitting=False) :
     """
     Compute the reduced chi-square of the provided model given the provided
     observations. This is a sum of the chi2 of log_Teff, log_L and each ID'ed
@@ -1265,9 +1266,15 @@ def reduced_chi2(model, observation) :
     model: dict
         The dictionary describing the particular model as created by
         interpolate_track_to_model
+    was_modelled: bool
+        Whether an actual model was constructed for the matching evolutionary 
+        track. 
     observation: dict
         The dictionary describing all the observations of a star as defined in
         create_observation_dict
+    exclude_splitting: bool
+        Whether to not include rotational splitting terms in the chi2 sum
+        Defaults to False
 
     ------- Returns -------
     chi2: float
@@ -1275,7 +1282,8 @@ def reduced_chi2(model, observation) :
         Will be NaN if the model does not feature a frequency of the degree
         (and radial order) provided in the observation
     """
-    return standardised_chi2(model, observation) / \
+    return standardised_chi2(model, was_modelled, observation, 
+                             exclude_splitting=exclude_splitting) / \
         max((number_observations(observation) - 5),1)
 
 

@@ -1113,10 +1113,11 @@ def make_statistical_model(grid, results) :
     # From results: age, Xc, frot_best, Mcc, Mcc_over_M, Pi0
     # Collect these quantities and their names in two lists to automate some
     # computations below
-    columns = np.array([grid["Zinis"], grid["Minis"], grid["logDs"], grid["fovs"],
-                        results["ages_cross"], np.log10(results["ages_cross"]),
-                        results["Xcs_cross"], results["frots_best"],
-                        results["frots_rel_best"],
+    columns = np.array([grid["Zinis"], grid["Minis"], grid["logDs"], 
+                        grid["fovs"], results["ages_cross"], 
+                        np.log10(results["ages_cross"]), results["Xcs_cross"], 
+                        results["Xcs_cross"] / grid["Xcinis"],
+                        results["frots_best"], results["frots_rel_best"],
                         results["frots_best"]/results["frots_rel_best"],
                         2*np.pi*results["frots_best"]/day*10**results["log_Rs"]*Rsun,
                         results["log_Teffs"], results["log_Ls"], results["Ms"], 

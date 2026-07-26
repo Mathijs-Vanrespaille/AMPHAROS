@@ -527,6 +527,29 @@ def read_MESA_history_columns(history_file, lookup_header, column_names,
         return columns
 
 
+def read_MESA_Xc_initial(history_file, lookup_header) :
+    """
+    Read the central hydrogen mass fraction of the first model in the given MESA 
+    history file
+
+    Author: Mathijs Vanrespaille
+
+    ------- Parameters -------
+    history_file: string
+        Path to the history file
+    lookup_header: dict
+        A table to find the column number matching each history column name.
+        Keys are strings and values are integers. 
+
+    ------- Returns -------
+    Xcini: float
+        Initial central hydrogen mass fraction at ZAMS
+    """
+    Xcini = np.loadtxt(history_file, skiprows=6, max_rows=1, 
+                       usecols=[lookup_header["center_h1"]])
+    return float(Xcini)
+
+
 def read_model_parameters(parameter_file, header=True, delimiter=",") :
     """
     Read the file describing the parameters used in all the MESA models,
@@ -721,7 +744,8 @@ def read_storm_tracks(MESA_output_dir, Zini, Mini, logD, fov,
         "betas": numpy array of floats
             The beta_nl of each mode
             Only included if add_beta is True
-
+    Xcini: float
+        The initial central hydrogen mass fraction at ZAMS
     with K the number of mode identities read in and M the number of output
     steps of the model and F the number of considered rotation rates.
     Each array over time (those of length M) is sorted by Xc
@@ -748,6 +772,7 @@ def read_storm_tracks(MESA_output_dir, Zini, Mini, logD, fov,
         for i in range(len(history_columnNames))
     }
 
+    Xcini = read_MESA_Xc_initial(history_file, lookup_histfile)
     mn_hist,Xc_hist,age_hist,log_Teff_hist,log_L_hist = read_MESA_history_columns(history_file, lookup_histfile, 
                                                                                   ["model_number","center_h1","star_age","log_Teff","log_L"],
                                                                                   Xc_min=Xc_min,
@@ -848,7 +873,7 @@ def read_storm_tracks(MESA_output_dir, Zini, Mini, logD, fov,
     if add_beta :
         all_tracks["betas"][:] = all_tracks["betas"][:,I_sort]
 
-    return all_tracks
+    return (all_tracks, Xcini)
 
 
 def read_model_number_and_Xc_save(storm_summary_path) :
