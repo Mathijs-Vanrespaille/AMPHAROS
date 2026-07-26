@@ -1022,6 +1022,12 @@ def make_statistical_model(grid, results) :
             Statistical estimate for central hydrogen mass fraction
         "Xc_std": float
             Uncertainty on statistical central hydrogen mass fraction estimate
+        "Xc_prime_mean": float
+            Statistical estimate for central hydrogen mass fraction divided by
+            the initial central hydrogen mass fraction
+        "Xc_prime_std": float
+            Uncertainty on statistical central hydrogen mass fraction estimate
+            divided by the initial central hydrogen mass fraction
         "frot_mean": float
             Statistical estimate for rotation frequency in cycles per day
         "frot_std": float
@@ -1118,9 +1124,9 @@ def make_statistical_model(grid, results) :
                         results["log_gs"], results["Ms_cc"],
                         results["Ms_cc"]/results["Ms"], results["Pi0s"]])
     columns = np.array(columns)[:,toInclude]
-    names = ["Zini", "Mini", "logD", "fov", "age", "log_age", "Xc", "frot", 
-             "frot_rel", "fK", "vrot", "log_Teff", "log_L", "M", "R", "log_R", 
-             "log_g", "Mcc", "Mcc_over_M", "Pi0"]
+    names = ["Zini", "Mini", "logD", "fov", "age", "log_age", "Xc", "Xc_prime",
+             "frot", "frot_rel", "fK", "vrot", "log_Teff", "log_L", "M", "R", 
+             "log_R", "log_g", "Mcc", "Mcc_over_M", "Pi0"]
 
     assert len(columns) == len(names)
 
