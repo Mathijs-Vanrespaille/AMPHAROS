@@ -420,20 +420,6 @@ def find_best_chi2_all(observation, results, exclude_splitting_from_chi2=False) 
     toConsider = modelled & spectro_compatible
     chi2s = results["chi2s"]
     if not np.sum(toConsider) == 0 :
-        # print(spectro_compatible)
-        # print(spectro_compatible[modelled])
-        # print(spectro_compatible.any())
-        # print(spectro_compatible[modelled].any())
-        # print(chi2s[toConsider])
-        # print(np.isnan(chi2s[toConsider]).all())
-        # print(np.isnan(chi2s[spectro_compatible]).all())
-        # print(np.isnan(chi2s).all())
-        print("len(toConsider)", len(toConsider))
-        print("# toConsider", np.sum(toConsider))
-        print("len(modelled)", len(modelled))
-        print("# modelled", np.sum(modelled))
-        print("len(spectro_compatible)", len(spectro_compatible))
-        print("# spectro_compatible", np.sum(spectro_compatible))
         imin = np.nanargmin(chi2s[toConsider])
         results["chi2_best"] = chi2s[toConsider][imin]
         best_model_index = np.where(toConsider)[0][imin]
@@ -782,10 +768,7 @@ def add_history_results(grid, results) :
                                                     results["ages_cross"],
                                                     results["models"])) :
         # Bring these up to the results level for easier access
-        try :
-            log_Teffs[i] = model["log_Teff"]
-        except :
-            print(model)
+        log_Teffs[i] = model["log_Teff"]
         log_Ls[i] = model["log_L"]
         Ms[i] = model["M"]
 
