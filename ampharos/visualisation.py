@@ -403,8 +403,8 @@ def plot_all_chi2_in_HRD(results, observation, n_pg_main,
     log_Teffs = np.array([model["log_Teff"] for model in results["models"]])
     log_Ls = np.array([model["log_L"] for model in results["models"]])
     chi2s = np.array(results["chi2s"])
-    modelled = np.array([model["was_modelled"] for model in results["models"]], dtype=bool)
-    # modelled = np.array(results["was_modelled"], dtype=bool)
+    # modelled = np.array([model["was_modelled"] for model in results["models"]], dtype=bool)
+    modelled = np.array(results["was_modelled"], dtype=bool)
     log_Teffs = log_Teffs[modelled]
     log_Ls = log_Ls[modelled]
     chi2s = chi2s[modelled]
