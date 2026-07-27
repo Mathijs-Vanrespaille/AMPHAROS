@@ -233,7 +233,8 @@ def read_observations(observation_file, delimiter="\t", sort_by_l=True,
 
 
 def find_age_cross_and_frot(grid, observation, results, n_pg_main,
-                            frots_rel_to_include=[], use_GYRE=False) :
+                            frots_rel_to_include=[], use_GYRE=False, 
+                            model_only_tracks_crossing_HRD_error_ellipse=False) :
     """
     For each evolutionary track in the model grid, find the optimal age and
     rotation frequency and add them into the results. Also check if the optimal
@@ -264,6 +265,13 @@ def find_age_cross_and_frot(grid, observation, results, n_pg_main,
         splitting and the first-order rotational treatment by GYRE, rather than
         the second-order treatment optimising all the individual splitting using
         the StORM grid.
+    model_only_tracks_crossing_HRD_error_ellipse: bool
+        Whether to check if an evolutionary track crosses the 2sigma error 
+        ellipse on the HRD prior to finding a model with fixed age and rotation
+        rate. If True, evolutionary tracks that never enter an observed star's
+        HRD error ellipse are neglected. 
+        Defaults to False
+
     """
     # Prepping
     if len(frots_rel_to_include) == 0 :
@@ -271,7 +279,8 @@ def find_age_cross_and_frot(grid, observation, results, n_pg_main,
     else :
         frots_rel = frots_rel_to_include
 
-    args = [(tracks, n_pg_main, observation, frots_rel, use_GYRE)
+    args = [(tracks, n_pg_main, observation, frots_rel, use_GYRE, 
+             model_only_tracks_crossing_HRD_error_ellipse)
             for tracks in grid["all_tracks"]]
 
     # Getting the best model for each track. Parallelised
@@ -442,7 +451,8 @@ def find_best_chi2_all(observation, results, exclude_splitting_from_chi2=False) 
         print("All chi2 are NaN! No useable model was found!")
 
 
-def find_model_best_frot(tracks, n_pg_main, observation, frots_rel, use_GYRE) :
+def find_model_best_frot(tracks, n_pg_main, observation, frots_rel, use_GYRE, 
+                         model_only_tracks_crossing_HRD_error_ellipse) :
     """
     For a given evolutionary track in the model grid, find the optimal age and
     rotation frequency. Check if the optimal model lies within the HRD's 2sigma
@@ -470,18 +480,25 @@ def find_model_best_frot(tracks, n_pg_main, observation, frots_rel, use_GYRE) :
         splitting and the first-order rotational treatment by GYRE, rather than
         the second-order treatment optimising all the individual splitting using
         the StORM grid.
+    model_only_tracks_crossing_HRD_error_ellipse: bool
+        Whether to check if an evolutionary track crosses the 2sigma error 
+        ellipse on the HRD prior to finding a model with fixed age and rotation
+        rate. If True, evolutionary tracks that never enter an observed star's
+        HRD error ellipse are neglected. 
+
     """
-    if not does_track_cross_HRD_error_ellipse(tracks, observation) :
-        # Fill with NaNs
-        model_best_frot = {}
-        for key in ("age", "Xc", "frot_best", "frot_rel_best", "log_L",
-                    "log_Teff", "M") :
-            model_best_frot[key] = np.nan
-        model_best_frot["freqs"] = np.full(len(tracks["ls"]), np.nan)
-        model_best_frot["was_modelled"] = False # Track that we did not model this
-        model_best_frot["in_statistical_model"] = False
-        model_best_frot["spectro_compatible"] = False
-        return model_best_frot
+    if model_only_tracks_crossing_HRD_error_ellipse: 
+        if not does_track_cross_HRD_error_ellipse(tracks, observation) :
+            # Fill with NaNs and return
+            model_best_frot = {}
+            for key in ("age", "Xc", "frot_best", "frot_rel_best", "log_L",
+                        "log_Teff", "M") :
+                model_best_frot[key] = np.nan
+            model_best_frot["freqs"] = np.full(len(tracks["ls"]), np.nan)
+            model_best_frot["was_modelled"] = False # Track that we did not model this
+            model_best_frot["in_statistical_model"] = False
+            model_best_frot["spectro_compatible"] = False
+            return model_best_frot
 
     if not use_GYRE : # When using StORM as recommended
         models = []
@@ -523,7 +540,8 @@ def find_model_best_frot(tracks, n_pg_main, observation, frots_rel, use_GYRE) :
 
 def analyse_observations(grid, all_observations, n_pgs=[1,2,3],
                          Nmodels_to_show=5, use_GYRE=False,
-                         exclude_splitting_from_chi2=False) :
+                         exclude_splitting_from_chi2=False, 
+                         model_only_tracks_crossing_HRD_error_ellipse=False) :
     """
     Compare the set of observations against the grid assuming the different
     radial orders for the fixed mode, using the selected methodology, creating
@@ -556,6 +574,12 @@ def analyse_observations(grid, all_observations, n_pgs=[1,2,3],
         Whether to not include rotational splitting terms in the chi2 cost
         function
         Defaults to False
+    model_only_tracks_crossing_HRD_error_ellipse: bool
+        Whether to check if an evolutionary track crosses the 2sigma error 
+        ellipse on the HRD prior to finding a model with fixed age and rotation
+        rate. If True, evolutionary tracks that never enter an observed star's
+        HRD error ellipse are neglected. 
+        Defaults to False
 
     """
     for observation in all_observations :
@@ -583,7 +607,8 @@ def analyse_observations(grid, all_observations, n_pgs=[1,2,3],
         # Trying all n_pg_main options and collecting results
         all_results = trying_all_n_pg_main(grid, observation, n_pgs=n_pgs_main,
                                            use_GYRE=use_GYRE,
-                                           exclude_splitting_from_chi2=exclude_splitting_from_chi2)
+                                           exclude_splitting_from_chi2=exclude_splitting_from_chi2,
+                                           model_only_tracks_crossing_HRD_error_ellipse = model_only_tracks_crossing_HRD_error_ellipse)
 
         # Write output files
         for i,results in enumerate(all_results) :
@@ -603,7 +628,8 @@ def analyse_observations(grid, all_observations, n_pgs=[1,2,3],
 
 
 def trying_all_n_pg_main(grid, observation, n_pgs=[1,2,3], use_GYRE=False,
-                         exclude_splitting_from_chi2=False) :
+                         exclude_splitting_from_chi2=False, 
+                         model_only_tracks_crossing_HRD_error_ellipse=False) :
     """
     Comparing the observations of a given star to the grid of models to find
     optimal model for each evolutionary track, compute the cost functions for
@@ -631,6 +657,12 @@ def trying_all_n_pg_main(grid, observation, n_pgs=[1,2,3], use_GYRE=False,
     exclude_splitting_from_chi2: bool
         Whether to not include rotational splitting terms in the chi2 cost
         function
+        Defaults to False
+    model_only_tracks_crossing_HRD_error_ellipse: bool
+        Whether to check if an evolutionary track crosses the 2sigma error 
+        ellipse on the HRD prior to finding a model with fixed age and rotation
+        rate. If True, evolutionary tracks that never enter an observed star's
+        HRD error ellipse are neglected. 
         Defaults to False
 
     ------- Returns -------
@@ -703,7 +735,8 @@ def trying_all_n_pg_main(grid, observation, n_pgs=[1,2,3], use_GYRE=False,
         results = {"name":observation["name"],
                    "save_suffix":observation["save_suffix"]}
         find_age_cross_and_frot(grid, observation, results, n_pg,
-                                use_GYRE=use_GYRE)
+                                use_GYRE=use_GYRE, 
+                                model_only_tracks_crossing_HRD_error_ellipse=model_only_tracks_crossing_HRD_error_ellipse)
         find_best_chi2_all(observation, results,
                            exclude_splitting_from_chi2=exclude_splitting_from_chi2)
         results["n_pg_main"] = n_pg
