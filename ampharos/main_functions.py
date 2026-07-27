@@ -266,22 +266,11 @@ def find_age_cross_and_frot(grid, observation, results, n_pg_main,
         the StORM grid.
     """
     # Prepping
-    N = len(grid["Zinis"])
-    results["ages_cross"] = np.empty(N)
-    results["Xcs_cross"] = np.empty(N)
-    results["frots_best"] = np.empty(N)
-    results["frots_rel_best"] = np.empty(N)
-    results["models"] = []
-    results["spectro_compatible"] = np.empty(N, dtype=bool)
-    results["in_statistical_model"] = np.empty(N, dtype=bool)
-    results["was_modelled"] = np.empty(N, dtype=bool)
-    results["n_pg_main"] = n_pg_main
-
     if len(frots_rel_to_include) == 0 :
         frots_rel = grid["all_tracks"][0]["frots_rel"]
     else :
         frots_rel = frots_rel_to_include
-        
+
     args = [(tracks, n_pg_main, observation, frots_rel, use_GYRE)
             for tracks in grid["all_tracks"]]
 
@@ -293,15 +282,35 @@ def find_age_cross_and_frot(grid, observation, results, n_pg_main,
 
     # Assembling the results
     # models_best_frot_sorted = [models_best_frot[i] for i in Is]
+    N = len(grid["Zinis"])
+    ages_cross = np.empty(N)
+    Xcs_cross = np.empty(N)
+    frots_best = np.empty(N)
+    frots_rel_best = np.empty(N)
+    models = []
+    spectro_compatible = np.empty(N, dtype=bool)
+    in_statistical_model = np.empty(N, dtype=bool)
+    was_modelled = np.empty(N, dtype=bool)
+
     for i,model_best_frot in enumerate(models_best_frot) :
-        results["ages_cross"][i] = model_best_frot["age"]
-        results["Xcs_cross"][i] = model_best_frot["Xc"]
-        results["frots_best"][i] = model_best_frot["frot_best"]
-        results["frots_rel_best"][i] = model_best_frot["frot_rel_best"]
-        results["models"].append(model_best_frot)
-        results["spectro_compatible"][i] = model_best_frot["spectro_compatible"]
-        results["in_statistical_model"][i] = model_best_frot["in_statistical_model"]
-        results["was_modelled"][i] = model_best_frot["was_modelled"]
+        ages_cross[i] = model_best_frot["age"]
+        Xcs_cross[i] = model_best_frot["Xc"]
+        frots_best[i] = model_best_frot["frot_best"]
+        frots_rel_best[i] = model_best_frot["frot_rel_best"]
+        models.append(model_best_frot)
+        spectro_compatible[i] = model_best_frot["spectro_compatible"]
+        in_statistical_model[i] = model_best_frot["in_statistical_model"]
+        was_modelled[i] = model_best_frot["was_modelled"]
+
+    results["ages_cross"] = ages_cross
+    results["Xcs_cross"] = Xcs_cross
+    results["frots_best"] = frots_best
+    results["frots_rel_best"] = frots_rel_best
+    results["models"] = models
+    results["spectro_compatible"] = spectro_compatible
+    results["in_statistical_model"] = in_statistical_model
+    results["was_modelled"] = was_modelled
+    results["n_pg_main"] = n_pg_main
 
 
 # Only here because ProcessPoolExecutor wants a function with only one argument
@@ -339,7 +348,7 @@ def compute_chi2s(observation, results, exclude_splitting_from_chi2=False) :
 
     # Execution: computing all chi2s if modelled. Parallelised
     with ProcessPoolExecutor() as executor:
-        for i, chi2 in enumerate(executor.map(standardised_chi2_wrapper, 
+        for i, chi2 in enumerate(executor.map(standardised_chi2_wrapper,
                                               argsFalse)):
             chi2s[i] = chi2
 
@@ -351,7 +360,7 @@ def compute_chi2s(observation, results, exclude_splitting_from_chi2=False) :
 
         # Execution: computing all chi2s if modelled. Parallelised
         with ProcessPoolExecutor() as executor:
-            for i, chi2 in enumerate(executor.map(standardised_chi2_wrapper, 
+            for i, chi2 in enumerate(executor.map(standardised_chi2_wrapper,
                                                   argsTrue)):
                 chi2s_withoutSplitting[i] = chi2
 
@@ -405,18 +414,35 @@ def find_best_chi2_all(observation, results, exclude_splitting_from_chi2=False) 
     """
     compute_chi2s(observation, results,
                   exclude_splitting_from_chi2=exclude_splitting_from_chi2)
+    modelled = results["was_modelled"]
     # There's at least one model within the 2sigma error ellipse on the HRD
-    if not np.sum(results["spectro_compatible"]) == 0 :
-        spectro_compatible = results["spectro_compatible"]
-        imin = np.nanargmin(results["chi2s"][spectro_compatible])
-        results["chi2_best"] = results["chi2s"][spectro_compatible][imin]
-        best_model_index = np.where(spectro_compatible)[0][imin]
+    spectro_compatible = results["spectro_compatible"]
+    toConsider = modelled & spectro_compatible
+    chi2s = results["chi2s"]
+    if not np.sum(toConsider) == 0 :
+        # print(spectro_compatible)
+        # print(spectro_compatible[modelled])
+        # print(spectro_compatible.any())
+        # print(spectro_compatible[modelled].any())
+        # print(chi2s[toConsider])
+        # print(np.isnan(chi2s[toConsider]).all())
+        # print(np.isnan(chi2s[spectro_compatible]).all())
+        # print(np.isnan(chi2s).all())
+        print("len(toConsider)", len(toConsider))
+        print("# toConsider", np.sum(toConsider))
+        print("len(modelled)", len(modelled))
+        print("# modelled", np.sum(modelled))
+        print("len(spectro_compatible)", len(spectro_compatible))
+        print("# spectro_compatible", np.sum(spectro_compatible))
+        imin = np.nanargmin(chi2s[toConsider])
+        results["chi2_best"] = chi2s[toConsider][imin]
+        best_model_index = np.where(toConsider)[0][imin]
         results["best_model_index"] = best_model_index
         results["best_model"] = results["models"][best_model_index]
-        assert results["chi2s"][best_model_index] == results["chi2_best"]
+        assert chi2s[best_model_index] == results["chi2_best"]
     # No models in agreement with the Teff and L constraints, but at least
     # some of them were actually modelled. Find the least bad model among these.
-    elif not np.isnan(results["chi2s"]).all() :
+    elif not np.isnan(chi2s).all() :
         best_model_index = np.nanargmin(results["chi2s"])
         results["best_model_index"] = best_model_index
         results["best_model"] = results["models"][best_model_index]
@@ -433,7 +459,7 @@ def find_best_chi2_all(observation, results, exclude_splitting_from_chi2=False) 
 def find_model_best_frot(tracks, n_pg_main, observation, frots_rel, use_GYRE) :
     """
     For a given evolutionary track in the model grid, find the optimal age and
-    rotation frequency. Check if the optimal model lies within the HRD's 2sigma 
+    rotation frequency. Check if the optimal model lies within the HRD's 2sigma
     error ellipse. For evolutionary tracks that never cross the HRD's 2.1sigma
     error ellipse, returns a dictionary full of NaNs.
     (2.1 instead of 2 to avoid rounding issues and have a margin of error)
@@ -452,7 +478,7 @@ def find_model_best_frot(tracks, n_pg_main, observation, frots_rel, use_GYRE) :
         create_observation_dict
     frots_rel : list of floats
         Which relative rotation rates for which to find the optimal age and then
-        use in the interpolation in rotation. 
+        use in the interpolation in rotation.
     use_GYRE: bool
         Whether to optimise the rotation rate using the mean rotational
         splitting and the first-order rotational treatment by GYRE, rather than
@@ -462,12 +488,13 @@ def find_model_best_frot(tracks, n_pg_main, observation, frots_rel, use_GYRE) :
     if not does_track_cross_HRD_error_ellipse(tracks, observation) :
         # Fill with NaNs
         model_best_frot = {}
-        for key in ("ages_cross", "Xcs_cross", "frots_best",
-                    "spectro_compatible", "in_statistical_model") :
+        for key in ("age", "Xc", "frot_best", "frot_rel_best", "log_L",
+                    "log_Teff", "M") :
             model_best_frot[key] = np.nan
+        model_best_frot["freqs"] = np.full(len(tracks["ls"]), np.nan)
         model_best_frot["was_modelled"] = False # Track that we did not model this
-        model_best_frot["in_statistical_model"] = False 
-        model_best_frot["spectro_compatible"] = False 
+        model_best_frot["in_statistical_model"] = False
+        model_best_frot["spectro_compatible"] = False
         return model_best_frot
 
     if not use_GYRE : # When using StORM as recommended
@@ -492,9 +519,16 @@ def find_model_best_frot(tracks, n_pg_main, observation, frots_rel, use_GYRE) :
                                                          add_beta=True)
         model_best_frot = interpolate_model_in_frot_with_GYRE(observation,
                                                               model_nonRot)
-    model_best_frot["was_modelled"] = True
-    model_best_frot["spectro_compatible"] = is_model_compatible_with_spectroscopy(model_best_frot, observation, sigma_tol=2.) 
-    model_best_frot["in_statistical_model"] = is_model_compatible_with_spectroscopy(model_best_frot, observation, sigma_tol=2.) 
+
+    if not np.isnan(model_best_frot["log_Teff"]) :
+        model_best_frot["was_modelled"] = True
+        model_best_frot["spectro_compatible"] = is_model_compatible_with_spectroscopy(model_best_frot, observation, sigma_tol=2.)
+        model_best_frot["in_statistical_model"] = is_model_compatible_with_spectroscopy(model_best_frot, observation, sigma_tol=2.)
+    else :
+        model_best_frot["was_modelled"] = False
+        model_best_frot["spectro_compatible"] = False
+        model_best_frot["in_statistical_model"] = False
+
     return model_best_frot
 
 
@@ -748,7 +782,10 @@ def add_history_results(grid, results) :
                                                     results["ages_cross"],
                                                     results["models"])) :
         # Bring these up to the results level for easier access
-        log_Teffs[i] = model["log_Teff"]
+        try :
+            log_Teffs[i] = model["log_Teff"]
+        except :
+            print(model)
         log_Ls[i] = model["log_L"]
         Ms[i] = model["M"]
 
@@ -1049,7 +1086,7 @@ def make_statistical_model(grid, results) :
             Statistical estimate for surface rotation speed in kilometers per
             second
         "vrot_std": float
-            Uncertainty on statistical estimate for surface rotation speed in 
+            Uncertainty on statistical estimate for surface rotation speed in
             kilometers per second
         "log_Teff_mean": float
             Statistical estimate for base-10 logarithm of effective temperature
@@ -1113,20 +1150,20 @@ def make_statistical_model(grid, results) :
     # From results: age, Xc, frot_best, Mcc, Mcc_over_M, Pi0
     # Collect these quantities and their names in two lists to automate some
     # computations below
-    columns = np.array([grid["Zinis"], grid["Minis"], grid["logDs"], 
-                        grid["fovs"], results["ages_cross"], 
-                        np.log10(results["ages_cross"]), results["Xcs_cross"], 
+    columns = np.array([grid["Zinis"], grid["Minis"], grid["logDs"],
+                        grid["fovs"], results["ages_cross"],
+                        np.log10(results["ages_cross"]), results["Xcs_cross"],
                         results["Xcs_cross"] / grid["Xcinis"],
                         results["frots_best"], results["frots_rel_best"],
                         results["frots_best"]/results["frots_rel_best"],
                         2*np.pi*results["frots_best"]/day*10**results["log_Rs"]*Rsun,
-                        results["log_Teffs"], results["log_Ls"], results["Ms"], 
+                        results["log_Teffs"], results["log_Ls"], results["Ms"],
                         10**results["log_Rs"], results["log_Rs"],
                         results["log_gs"], results["Ms_cc"],
                         results["Ms_cc"]/results["Ms"], results["Pi0s"]])
     columns = np.array(columns)[:,toInclude]
     names = ["Zini", "Mini", "logD", "fov", "age", "log_age", "Xc", "Xc_prime",
-             "frot", "frot_rel", "fK", "vrot", "log_Teff", "log_L", "M", "R", 
+             "frot", "frot_rel", "fK", "vrot", "log_Teff", "log_L", "M", "R",
              "log_R", "log_g", "Mcc", "Mcc_over_M", "Pi0"]
 
     assert len(columns) == len(names)

@@ -563,17 +563,17 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
                                                    observation["splittings_err"]) :
         # Find the beta of each multiplet
         # Find the radial order of the zonal mode with identical l nearest in zonal frequency
-        try :
-            n_pgs_match = np.array(n_pgs_zonal_model)[(np.array(ls_zonal_model) == l)]
-            freqs_match = np.array(freqs_zonal_model)[(np.array(ls_zonal_model) == l)]
-            n_pg_min = n_pgs_match[np.nanargmin(np.abs(freqs_match - freq))]
-        except ValueError :
-            # No workable solutions. Set everything to nan and send it out the door.
-            model_best_frot["frot_best"], model_best_frot["frot_rel_best"] = np.nan, np.nan
-            model_best_frot["age"], model_best_frot["Xc"] = np.nan, np.nan
-            model_best_frot["log_Teff"], model_best_frot["log_L"], model_best_frot["M"] = np.nan, np.nan, np.nan
-            model_best_frot["freqs"] = np.full(len(model_best_frot["ls"]), np.nan)
-            return model_best_frot
+        # try :
+        n_pgs_match = np.array(n_pgs_zonal_model)[(np.array(ls_zonal_model) == l)]
+        freqs_match = np.array(freqs_zonal_model)[(np.array(ls_zonal_model) == l)]
+        n_pg_min = n_pgs_match[np.nanargmin(np.abs(freqs_match - freq))]
+        # except ValueError :
+        #     # No workable solutions. Set everything to nan and send it out the door.
+        #     model_best_frot["frot_best"], model_best_frot["frot_rel_best"] = np.nan, np.nan
+        #     model_best_frot["age"], model_best_frot["Xc"] = np.nan, np.nan
+        #     model_best_frot["log_Teff"], model_best_frot["log_L"], model_best_frot["M"] = np.nan, np.nan, np.nan
+        #     model_best_frot["freqs"] = np.full(len(model_best_frot["ls"]), np.nan)
+        #     return model_best_frot
 
         try :
             beta = np.array(betas_zonal_model)[(np.array(ls_zonal_model) == l) &
@@ -1327,6 +1327,13 @@ def standardised_chi2(model, was_modelled, observation, exclude_splitting=False)
     if not np.isnan(observation["log_L"]) :
         chi2 += (model["log_L"] - observation["log_L"])**2 / \
                 observation["log_L_err"]**2
+    # if np.isnan(model["log_Teff"]) :
+    #     print("model log_Teff is NaN for model", model["histfile"])
+    #     print(model)
+    # if np.isnan(model["log_L"]) :
+    #     print("model log_L is NaN for model", model["histfile"])
+    #     print(model)
+    # assert not np.isnan(chi2)
 
     # Skipping the first because the chi2 contribution of the first frequency is
     # zero as we force the model frequency onto the observed frequency
@@ -1335,8 +1342,11 @@ def standardised_chi2(model, was_modelled, observation, exclude_splitting=False)
     observation_freqs_m0_err = observation["freqs_err"]
     observation_n_pgs = observation["n_pgs"]
     for k in range(observation["N_m"]) :
-        l = ls_obs[k]
         observation_freq_m0 = observation_freqs_m0[k]
+        # Skip in case a zonal mode is somehow a NaN. Shouldn't occur!
+        # if np.isnan(observation_freq_m0) :
+        #     continue
+        l = ls_obs[k]
         observation_freq_m0_err = observation_freqs_m0_err[k]
         observation_n_pg = observation_n_pgs[k]
         # If the radial order is given, compute the chi2 contribution of this
@@ -1353,13 +1363,11 @@ def standardised_chi2(model, was_modelled, observation, exclude_splitting=False)
             mask = (model["ls"] == l) & (model["ms"] == 0)
             n_pgs_masked = model["n_pgs"][mask]
             freqs_masked = model["freqs"][mask]
-            try :
-                i_min = np.nanargmin(np.abs(freqs_masked - observation_freq_m0))
-            except :
-                return np.nan
+            i_min = np.nanargmin(np.abs(freqs_masked - observation_freq_m0))
             n_pg_min = n_pgs_masked[i_min]
             chi2 += (freqs_masked[i_min] - observation_freq_m0)**2 / \
                                 observation_freq_m0_err**2
+        # assert not np.isnan(chi2)
 
         # Now we know the best n_pg, check the predicted splittings and compare
         # to available observations, unless excluded of course
@@ -1371,9 +1379,13 @@ def standardised_chi2(model, was_modelled, observation, exclude_splitting=False)
             ms = ms[ms != 0]
             for m, observation_split, observation_split_err in \
                 zip(ms, observation_splittings, observation_splittings_err) :
+                # Skip missing components of a multiplet
+                if np.isnan(observation_split) :
+                    continue
                 model_split = get_mode_splitting_model(model, l, m, n_pg_min)
                 chi2 += (model_split - observation_split)**2 / \
                         observation_split_err**2
+            # assert not np.isnan(chi2)
     return chi2
 
 
