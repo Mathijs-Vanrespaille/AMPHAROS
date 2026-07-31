@@ -1030,26 +1030,27 @@ def write_results_summary(grid, results, save_name, save_dir,
     Rsol = 6.957e8 # in m
     day = 86400 # in s
     models = results["models"]
-    header = "chi2,chi2_reduced,spectro_compatible,Z,Mini,logD,fov,Xc,age," \
-             "log_age,frot,frot_rel,fK,log_Teff,log_L,M,R,log_R,log_g,Mcc," \
-             "Mcc_over_M,Pi0"
+    header = "chi2,chi2_reduced,spectro_compatible,Z,Mini,logD,fov,Xc,Xc_prime," \
+             "age,log_age,frot,frot_rel,fK,log_Teff,log_L,M,R,log_R,vrot,log_g," \
+             "Mcc,Mcc_over_M,Pi0"
     arrays = [results["chi2s"], results["chi2s_reduced"],
               results["spectro_compatible"], grid["Zinis"], grid["Minis"],
-              grid["logDs"], grid["fovs"], results["Xcs_cross"],
-              results["ages_cross"], results["frots_best"], results["log_Rs"],
+              grid["logDs"], grid["fovs"], results["Xcs_cross"], 
+              results["Xcinis"], results["ages_cross"], 
+              results["frots_best"], results["log_Rs"], results["vrots"], 
               results["log_gs"], results["Ms_cc"], results["Pi0s"]]
     if exclude_splitting_from_chi2 :
         header += ",chi2_withSplitting,chi2_withSplitting_reduced"
     all_lines = [header]
-    for i,(chi2,chi2_reduced,spectro_compatible,Zini,Mini,logD,fov,Xc,age,frot,log_R,log_g,Mcc,Pi0) in \
+    for i,(chi2,chi2_reduced,spectro_compatible,Zini,Mini,logD,fov,Xc,Xcini,age,frot,log_R,vrot,log_g,Mcc,Pi0) in \
         enumerate(np.array(arrays).T) :
         model = models[i]
         log_Teff, log_L, M = model["log_Teff"], model["log_L"], model["M"]
         R = 10**log_R
         f_K = np.sqrt(G*M*Msol/(R*Rsol)**3) * day
         new_line = f"{chi2},{chi2_reduced},{spectro_compatible},{Zini},{Mini}," \
-                   f"{logD},{fov},{Xc},{age},{np.log10(age)},{frot}," \
-                   f"{frot/f_K},{f_K},{log_Teff},{log_L},{M},{R},{log_R}," \
+                   f"{logD},{fov},{Xc},{Xc/Xcini},{age},{np.log10(age)},{frot}," \
+                   f"{frot/f_K},{f_K},{log_Teff},{log_L},{M},{R},{log_R},{vrot}," \
                    f"{log_g},{Mcc},{Mcc/M},{Pi0}"
         if exclude_splitting_from_chi2 :
             new_line += f",{results['chi2_withSplitting'][i]}," \
