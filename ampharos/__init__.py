@@ -12,6 +12,7 @@ from .visualisation import *
 import pandas as pd
 import numpy as np
 from ast import literal_eval
+from os import cpu_count
 from concurrent.futures import ProcessPoolExecutor
 
 
@@ -285,7 +286,8 @@ def find_age_cross_and_frot(grid, observation, results, n_pg_main,
 
     # Getting the best model for each track. Parallelised
     models_best_frot = []
-    with ProcessPoolExecutor() as executor:
+    n_workers = max(1, (cpu_count() or 1) - 2)
+    with ProcessPoolExecutor(max_workers=n_workers) as executor:
         for i, model_best_frot in enumerate(executor.map(find_model_best_frot_wrapper, args)):
             models_best_frot.append(model_best_frot)
 
@@ -322,11 +324,6 @@ def find_age_cross_and_frot(grid, observation, results, n_pg_main,
     results["n_pg_main"] = n_pg_main
 
 
-# Only here because ProcessPoolExecutor wants a function with only one argument
-def find_model_best_frot_wrapper(args) :
-    return find_model_best_frot(*args)
-
-
 def compute_chi2s(observation, results, exclude_splitting_from_chi2=False) :
     """
     Compare the optimal model of each evolutionary track against the observation
@@ -351,12 +348,13 @@ def compute_chi2s(observation, results, exclude_splitting_from_chi2=False) :
     models = results["models"]
     modelled = results["was_modelled"]
     argsFalse = [(model, was_modelled, observation, False)
-            for model, was_modelled in zip(models, modelled)]
+                 for model, was_modelled in zip(models, modelled)]
     N = len(models)
     chi2s = np.empty(N)
 
     # Execution: computing all chi2s if modelled. Parallelised
-    with ProcessPoolExecutor() as executor:
+    n_workers = max(1, (cpu_count() or 1) - 2)
+    with ProcessPoolExecutor(max_workers=n_workers) as executor:
         for i, chi2 in enumerate(executor.map(standardised_chi2_wrapper,
                                               argsFalse)):
             chi2s[i] = chi2
@@ -368,7 +366,7 @@ def compute_chi2s(observation, results, exclude_splitting_from_chi2=False) :
         chi2s_withoutSplitting = np.empty(N)
 
         # Execution: computing all chi2s if modelled. Parallelised
-        with ProcessPoolExecutor() as executor:
+        with ProcessPoolExecutor(max_workers=n_workers) as executor:
             for i, chi2 in enumerate(executor.map(standardised_chi2_wrapper,
                                                   argsTrue)):
                 chi2s_withoutSplitting[i] = chi2
@@ -381,12 +379,12 @@ def compute_chi2s(observation, results, exclude_splitting_from_chi2=False) :
         results["chi2s"] = chi2s
         results["chi2s_reduced"] = chi2s / DoF_withSplitting
     else :
-        results["chi2_withSplitting"] = chi2s
+        results["chi2s_withSplitting"] = chi2s
         results["chi2s_withSplitting_reduced"] = chi2s / DoF_withSplitting
         # Number of degrees of freedom when not counting the rotational
         # splittings
         DoF_withoutSplitting = max((number_observations(observation, exclude_splitting=True) - 4),1)
-        results["chi2"] = chi2s_withoutSplitting
+        results["chi2s"] = chi2s_withoutSplitting
         results["chi2s_reduced"] = chi2s_withoutSplitting / DoF_withSplitting
 
 
@@ -514,9 +512,9 @@ def find_model_best_frot(tracks, n_pg_main, observation, frots_rel, use_GYRE,
                                                                 models)
     else :
         age_cross = find_age_cross_zonal_mode(tracks, n_pg_main,
-                                                observation["freqs"][0],
-                                                observation["ls"][0],
-                                                frot_rel=0.0)
+                                              observation["freqs"][0],
+                                              observation["ls"][0],
+                                              frot_rel=0.0)
         model_nonRot = interpolate_track_to_model_in_age(tracks, age_cross,
                                                          frot_rel=0.0,
                                                          add_beta=True)
@@ -533,6 +531,11 @@ def find_model_best_frot(tracks, n_pg_main, observation, frots_rel, use_GYRE,
         model_best_frot["in_statistical_model"] = False
 
     return model_best_frot
+
+
+# Only here because ProcessPoolExecutor wants a function with only one argument
+def find_model_best_frot_wrapper(args) :
+    return find_model_best_frot(*args)
 
 
 ##### Figuring out n_pg ########################################################
