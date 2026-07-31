@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.interpolate as scint
 from concurrent.futures import ProcessPoolExecutor
+from os import cpu_count
 
 from .io_functions import read_model_parameters, read_storm_tracks, \
                           read_MESA_history_columns
@@ -128,7 +129,8 @@ def initialise_grid(MESA_output_dir, parameter_file, frots_rel_to_include=[],
             Xc_min, Xc_max, ls_to_include, n_pgs_to_include, add_beta)
             for Zini, Mini, logD, fov in zip(Zinis, Minis, logDs, fovs)]
     
-    with ProcessPoolExecutor() as executor:
+    n_workers = max(1, (cpu_count() or 1) - 2)
+    with ProcessPoolExecutor(max_workers=n_workers) as executor:
         for i, (track, Xcini) in enumerate(executor.map(read_storm_tracks_wrapper, args)):
             grid["all_tracks"].append(track)
             grid["Xcinis"][i] = Xcini
@@ -534,8 +536,8 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
     model_best_frot = {}
     # Copy over the basics that should remain constant with the non-rotating model
     for key in ["Xc_min", "Xc_max", "MESA_model_dir", "histfile", 
-                "lookup_histfile" "age", "Xc", "log_Teff", "log_L", "M", "ls", 
-                "ms", "n_pgs", "betas"] :
+                "lookup_histfile", "age", "Xc", "log_Teff", "log_L", "M", "ls", 
+                "ms", "n_pgs", "lookup_ID", "betas"] :
         model_best_frot[key] = model_nonRot[key]
 
     if np.isnan(model_nonRot["freqs"]).all() :
@@ -556,39 +558,33 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
     betas_zonal_model = model_nonRot["betas"][mask]
 
     # Find the mean splitting of each observed multiplet
-    ms_abs_all, splittings_all, splittings_err_all, betas_all = np.array([]), np.array([]), np.array([]), np.array([])
+    N = observation["N_m"]
+    ms_abs_all = np.zeros(N)
+    splittings_all = np.zeros(N)
+    splittings_err_all = np.ones(N)
+    betas_all = np.zeros(N)
     for l, freq, splittings, splittings_err in zip(observation["ls"],
                                                    observation["freqs"],
                                                    observation["splittings"],
                                                    observation["splittings_err"]) :
+        # Skip radial modes without any rotational splittings
+        if l == 0 :
+            continue
         # Find the beta of each multiplet
         # Find the radial order of the zonal mode with identical l nearest in zonal frequency
-        # try :
-        n_pgs_match = np.array(n_pgs_zonal_model)[(np.array(ls_zonal_model) == l)]
-        freqs_match = np.array(freqs_zonal_model)[(np.array(ls_zonal_model) == l)]
+        mask2 = np.array(ls_zonal_model) == l
+        n_pgs_match = np.array(n_pgs_zonal_model)[mask2]
+        freqs_match = np.array(freqs_zonal_model)[mask2]
         n_pg_min = n_pgs_match[np.nanargmin(np.abs(freqs_match - freq))]
-        # except ValueError :
-        #     # No workable solutions. Set everything to nan and send it out the door.
-        #     model_best_frot["frot_best"], model_best_frot["frot_rel_best"] = np.nan, np.nan
-        #     model_best_frot["age"], model_best_frot["Xc"] = np.nan, np.nan
-        #     model_best_frot["log_Teff"], model_best_frot["log_L"], model_best_frot["M"] = np.nan, np.nan, np.nan
-        #     model_best_frot["freqs"] = np.full(len(model_best_frot["ls"]), np.nan)
-        #     return model_best_frot
-
-        try :
-            beta = np.array(betas_zonal_model)[(np.array(ls_zonal_model) == l) &
-                                               (np.array(n_pgs_zonal_model) == n_pg_min)][0]
-        except IndexError :
-            raise Exception("no matching beta found")
-
+        beta = np.array(betas_zonal_model)[(np.array(ls_zonal_model) == l) &
+                                           (np.array(n_pgs_zonal_model) == n_pg_min)][0]
         ms = np.arange(-l, l+1)
         ms = ms[ms != 0]
         valid = ~np.isnan(splittings)
-
-        ms_abs_all = np.concatenate(ms_abs_all, np.abs(ms)[valid])
-        splittings_all = np.concatenate(splittings_all, splittings[valid])
-        splittings_err_all = np.concatenate(splittings_err_all, splittings_err[valid])
-        betas_all = np.concatenate(betas_all, np.full(len(ms[valid]), beta))
+        ms_abs_all = np.concatenate([ms_abs_all, np.abs(ms)[valid]])
+        splittings_all = np.concatenate([splittings_all, np.array(splittings)[valid]])
+        splittings_err_all = np.concatenate([splittings_err_all, np.array(splittings_err)[valid]])
+        betas_all = np.concatenate([betas_all, np.full(len(ms[valid]), beta)])
 
     ms_abs_all = np.array(ms_abs_all)
     splittings_all = np.array(splittings_all)
@@ -609,6 +605,14 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
     ms = model_nonRot["ms"]
     betas = model_nonRot["betas"]
     model_best_frot["freqs"] = freqs + ms*betas*frot_best
+
+    if np.isnan(model_nonRot["freqs"]).all() :
+        # No workable solutions. Set everything to nan and send it out the door.
+        model_best_frot["frot_best"], model_best_frot["frot_rel_best"] = np.nan, np.nan
+        model_best_frot["age"], model_best_frot["Xc"] = np.nan, np.nan
+        model_best_frot["log_Teff"], model_best_frot["log_L"], model_best_frot["M"] = np.nan, np.nan, np.nan
+        model_best_frot["freqs"] = np.full(len(model_best_frot["ls"]), np.nan)
+        return model_best_frot
 
     return model_best_frot
 
@@ -693,6 +697,7 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
     Ms        = np.array([m["M"]        for m in models])
     frots     = np.array([m["frot"]     for m in models])
     frots_rel = np.array([m["frot_rel"] for m in models])
+    f_Ks      = np.array([m["f_K"]      for m in models])
     all_freqs = np.stack([m["freqs"]    for m in models], axis=1)
 
     # Remove outliers in Xc! 
@@ -700,7 +705,7 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
     Xc_mad = np.nanmedian(np.abs(Xcs - Xc_median))
     toKeep = np.abs(Xcs - Xc_median) < 3 * 1.4826 * Xc_mad
     # Sort by frot for interpolation
-    I = np.argsort(frots_rel[toKeep])
+    I = np.argsort(frots[toKeep])
     # Check if there are workable results. Return all NaNs if not
     if len(I) == 0 :
         # No workable solutions. Set everything to nan and send it out the door.
@@ -719,6 +724,7 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
     all_freqs = all_freqs[:,I]
     frots = frots[toKeep][I]
     frots_rel = frots_rel[toKeep][I]
+    f_Ks = f_Ks[toKeep][I]
 
     # Find the rotation producing the smallest chi2 in splitting around the
     # selected zonal frequency.
@@ -734,6 +740,18 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
     # Or at least the available model with the lowest rotation rate
     idx = np.flatnonzero(toKeep)
     model_nonRot = models[idx[I[0]]]
+
+    # If there are many missing summaries for a particular evolutionary track
+    # then it is possible all models are filled with NaNs. In this case, we fill 
+    # this model up with NaNs too and return it. 
+    if np.isnan(model_nonRot["freqs"]).all() :
+        # No workable solutions. Set everything to nan and send it out the door.
+        model_best_frot["frot_best"] = np.nan
+        model_best_frot["frot_rel_best"], model_best_frot["f_K"] = np.nan, np.nan
+        model_best_frot["age"], model_best_frot["Xc"] = np.nan, np.nan
+        model_best_frot["log_Teff"], model_best_frot["log_L"], model_best_frot["M"] = np.nan, np.nan, np.nan
+        model_best_frot["freqs"] = np.full(len(model_best_frot["ls"]), np.nan)
+        return model_best_frot
 
     obs_ls = observation["ls"]
     obs_npgs = observation["n_pgs"]
@@ -761,8 +779,13 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
                 get_mode_frequency_model(model_nonRot, l, 0, n_pg)
                 for n_pg in n_pgs
             ])
-            n_pg_min = n_pgs[np.nanargmin(np.abs(freqs_model - observation_freq_m0))]
-
+            try :
+                n_pg_min = n_pgs[np.nanargmin(np.abs(freqs_model - observation_freq_m0))]
+            except :
+                print("model_nonRot", model_nonRot)
+                print("freqs_model", freqs_model)
+                print("observation_freq_m0", observation_freq_m0)
+                raise ValueError
         # Get the predicted splitting at each frot and add them to the chi2
         ms = np.arange(-l, l+1)
         ms = ms[ms != 0]
@@ -794,7 +817,8 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
     toKeep = [(~np.isnan(frots)) & (~np.isnan(chi2s))][0]
     if np.isnan(chi2s).all() or np.sum(toKeep) < 4 :
         # No workable solutions. Set everything to nan and send it out the door.
-        model_best_frot["frot_best"], model_best_frot["frot_rel_best"] = np.nan, np.nan
+        model_best_frot["frot_best"] = np.nan
+        model_best_frot["frot_rel_best"], model_best_frot["f_K"] = np.nan, np.nan
         model_best_frot["age"], model_best_frot["Xc"] = np.nan, np.nan
         model_best_frot["log_Teff"], model_best_frot["log_L"], model_best_frot["M"] = np.nan, np.nan, np.nan
         model_best_frot["freqs"] = np.full(len(model_best_frot["ls"]), np.nan)
@@ -824,7 +848,8 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
     model_best_frot["log_L"] = np.interp(frot_best, frots[toKeep],
                                          log_Ls[toKeep])
     model_best_frot["M"] = np.interp(frot_best, frots[toKeep], Ms[toKeep])
-
+    f_K = np.interp(frot_best, frots[toKeep], f_Ks[toKeep])
+    model_best_frot["f_K"] = f_K
     # Treat freqs separately as they are lists instead of floats
     K = len(model_best_frot["ls"])
     freqs_interp = np.empty(K)
@@ -833,11 +858,24 @@ def interpolate_models_in_frot_with_StORM(observation, models) :
         freq_track = all_freqs[k,:]
         toKeep = [~np.isnan(freq_track)][0]
         if np.sum(toKeep) <= 2 or np.min(abs(frots_rel[toKeep] - \
-                                             frot_best/model_nonRot["f_K"])) > 0.03 :
+                                             frot_best/f_K)) > 0.03 :
             freqs_interp[k] = np.nan
         else :
             freqs_interp[k] = np.interp(frot_best, frots[toKeep], 
                                         freq_track[toKeep])
+    if np.isnan(freqs_interp).all() :
+        # Something failed in the frequency interpolations. 
+        # Set everything to nan and send it out the door. 
+        # Like explanations include age interpolations at rotation rates around 
+        # the best rotation rate having failed for some reason. Then the 
+        # interpolation becomes unreliable, so we filled it with NaNs
+        model_best_frot["frot_best"] = np.nan
+        model_best_frot["frot_rel_best"], model_best_frot["f_K"] = np.nan, np.nan
+        model_best_frot["age"], model_best_frot["Xc"] = np.nan, np.nan
+        model_best_frot["log_Teff"], model_best_frot["log_L"], model_best_frot["M"] = np.nan, np.nan, np.nan
+        model_best_frot["freqs"] = np.full(len(model_best_frot["ls"]), np.nan)
+        return model_best_frot
+
     model_best_frot["freqs"] = freqs_interp
     model_best_frot["lookup_ID"] = models[0]["lookup_ID"]
 
@@ -1326,14 +1364,7 @@ def standardised_chi2(model, was_modelled, observation, exclude_splitting=False)
                 observation["log_Teff_err"]**2
     if not np.isnan(observation["log_L"]) :
         chi2 += (model["log_L"] - observation["log_L"])**2 / \
-                observation["log_L_err"]**2
-    # if np.isnan(model["log_Teff"]) :
-    #     print("model log_Teff is NaN for model", model["histfile"])
-    #     print(model)
-    # if np.isnan(model["log_L"]) :
-    #     print("model log_L is NaN for model", model["histfile"])
-    #     print(model)
-    # assert not np.isnan(chi2)
+                observation["log_L_err"]**2    
 
     # Skipping the first because the chi2 contribution of the first frequency is
     # zero as we force the model frequency onto the observed frequency
@@ -1347,6 +1378,8 @@ def standardised_chi2(model, was_modelled, observation, exclude_splitting=False)
         # if np.isnan(observation_freq_m0) :
         #     continue
         l = ls_obs[k]
+        if l == 0 :
+            continue
         observation_freq_m0_err = observation_freqs_m0_err[k]
         observation_n_pg = observation_n_pgs[k]
         # If the radial order is given, compute the chi2 contribution of this
@@ -1363,6 +1396,8 @@ def standardised_chi2(model, was_modelled, observation, exclude_splitting=False)
             mask = (model["ls"] == l) & (model["ms"] == 0)
             n_pgs_masked = model["n_pgs"][mask]
             freqs_masked = model["freqs"][mask]
+            if np.isnan(freqs_masked).all() :
+                print(model)
             i_min = np.nanargmin(np.abs(freqs_masked - observation_freq_m0))
             n_pg_min = n_pgs_masked[i_min]
             chi2 += (freqs_masked[i_min] - observation_freq_m0)**2 / \
@@ -1478,7 +1513,6 @@ def standardised_chi2_components(model, observation) :
             chi2_components["splittings"][-1].append(chi2)
 
     return chi2_components
-
 
 
 ##### NAVIGATING GRID ##########################################################
