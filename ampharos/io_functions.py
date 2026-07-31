@@ -373,6 +373,11 @@ def process_summary_file(storm_summary_path,
         if not os.path.isfile(gyre_model_path) :
             betas[:] = np.nan
             print("Missing GYRE file : ", gyre_model_path)
+            track = {"age": age, "mn": mn, "Xc": Xc, "Xc_save": Xc_save, "f_K": f_K,
+               "freqs": freqs, "track_reliable": reliable,
+               "log_Teff":logT, "log_L":logL, "betas":betas}
+            return track
+                
         gyre_output = pyg.read_output(gyre_model_path)
 
         for k, (l, n_pg) in enumerate(zip(ls_track, n_pgs_track)) :
@@ -590,7 +595,7 @@ def read_model_parameters(parameter_file, header=True, delimiter=",") :
         header = np.loadtxt(parameter_file, max_rows=1, dtype=str,
                             delimiter=delimiter)
         parameters = np.loadtxt(parameter_file, skiprows=1, dtype=float,
-                                unpack=True, delimiter=delimiter)
+                                unpack=True, delimiter=delimiter, ndmin=2)
         try :
             Zinis = parameters[(header == "Z") | (header == "Zini")][0]
         except :
@@ -620,7 +625,7 @@ def read_model_parameters(parameter_file, header=True, delimiter=",") :
                            "'log_D_mix' as expected.")
     else :
         Zinis, Minis, logDs, fovs = np.loadtxt(parameter_file, unpack=True,
-                                               delimiter=delimiter)
+                                               delimiter=delimiter, ndmin=2)
     return Zinis, Minis, logDs, fovs
 
 
