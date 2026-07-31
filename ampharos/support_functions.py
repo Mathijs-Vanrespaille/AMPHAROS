@@ -606,7 +606,7 @@ def interpolate_model_in_frot_with_GYRE(observation, model_nonRot) :
     betas = model_nonRot["betas"]
     model_best_frot["freqs"] = freqs + ms*betas*frot_best
 
-    if np.isnan(model_nonRot["freqs"]).all() :
+    if np.isnan(model_best_frot["freqs"]).all() :
         # No workable solutions. Set everything to nan and send it out the door.
         model_best_frot["frot_best"], model_best_frot["frot_rel_best"] = np.nan, np.nan
         model_best_frot["age"], model_best_frot["Xc"] = np.nan, np.nan
