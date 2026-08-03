@@ -608,7 +608,6 @@ def plot_models_and_observed_HRD(models, observation,
     return fig, ax
 
 
-
 ##### Parameter correlations and distributions #################################
 
 
