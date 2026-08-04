@@ -313,12 +313,12 @@ Users are welcome to adapt AMPHAROS for their own purposes. The code is spread o
  - `__init__.py`: The top level functions that the user is expected to interact with the most are contained here. Here the user can control what plots are created, how the rotation frequency is optimised, how the statistical model is computed, which history results to add to the output, etc.
  - `visualisation.py`: This contains the functions used to create figures. Most functions already have a number of arguments to help the user optimise the figures, though creating more functions or further altering the functionality there is encouraged as well.
  - `io_functions.py`: These functions help read in the model grid and observations and create the output of the code.
- - `support_functions.py`: These functions primarily exist to aid other functions in the other three files, so changes here will propagate. Be cautious when altering these functions!
+ - `support_functions.py`: These functions primarily exist to aid other functions in the other three files, so changes here will propagate throughout the whole code. Be cautious when altering these functions!
 
 
 # Contact
 
-Questions, comments, and suggestions are very much welcome and can be sent to AMPHAROS's author, Mathijs Vanrespaille (mathijs.vanrespaille@kuleuven.be)
+Questions, comments, and suggestions are very much welcome! Please raise an issue on [the Github](https://github.com/Mathijs-Vanrespaille/AMPHAROS/issues) or e-mail AMPHAROS's author, Mathijs Vanrespaille (mathijs.vanrespaille@kuleuven.be)
 
 
 # How to cite this code
