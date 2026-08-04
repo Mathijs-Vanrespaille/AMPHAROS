@@ -18,7 +18,7 @@ To run AMPHAROS, the following packages are required. The code is not expected t
 ## Install instructions
 
 To install the AMPHAROS Python package, create and navigate into an appropriate folder, for example `~/ampharos/`.
-Download the [GitHub repository]{https://github.com/Mathijs-Vanrespaille/AMPHAROS} and unzip it there. Alternatively, clone the repository using
+Download the [GitHub repository](https://github.com/Mathijs-Vanrespaille/AMPHAROS) and unzip it there. Alternatively, clone the repository using
 
 ```bash
 git clone https://github.com/Mathijs-Vanrespaille/AMPHAROS
@@ -346,6 +346,21 @@ archivePrefix = {arXiv},
 }
 
 ```
+
+
+As AMPHAROS relies on model output from MESA, you should also cite the MESA instrumentation papers, depending on which version of the MESA code from which you feed the output into AMPHAROS. For the model grid accompanying Vanrespaille et al. (submitted), you should cite the following MESA instrumentation papers:
+ - [Paxton et al. (2011)](https://ui.adsabs.harvard.edu/abs/2011ApJS..192....3P/abstract)
+ - [Paxton et al. (2013)](https://ui.adsabs.harvard.edu/abs/2013ApJS..208....4P/abstract)
+ - [Paxton et al. (2015)](https://ui.adsabs.harvard.edu/abs/2015ApJS..220...15P/abstract)
+ - [Paxton et al. (2018)](https://ui.adsabs.harvard.edu/abs/2018ApJS..234...34P/abstract)
+ - [Paxton et al. (2019)](https://ui.adsabs.harvard.edu/abs/2019ApJS..243...10P/abstract)
+ - [Jermyn et al. (2023)](https://ui.adsabs.harvard.edu/abs/2023ApJS..265...15J/abstract)
+
+When using the StORM output for the oscillation computations, as AMPHAROS does by default, you should also cite
+ - Vanlaer et al. (submitted)
+ - [The StORM website](https://storm.stellar-oscillations.org/)
+
+If you use the GYRE grid accompanying Vanrespaille et al. (submitted), you should also cite [Townsend & Teitler (2013)](https://ui.adsabs.harvard.edu/abs/2013MNRAS.435.3406T/abstract).
 
 
 # Licence
