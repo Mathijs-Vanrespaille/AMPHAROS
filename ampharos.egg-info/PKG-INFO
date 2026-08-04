@@ -47,19 +47,19 @@ To run AMPHAROS, the following packages are required. The code is not expected t
 
 ## Install instructions
 
-To install you can download the [GitHub repository]{https://github.com/Mathijs-Vanrespaille/AMPHAROS} and unzip it or clone the repository using:
+To install the AMPHAROS Python package, create and navigate into an appropriate folder, for example `~/ampharos/`.
+Download the [GitHub repository]{https://github.com/Mathijs-Vanrespaille/AMPHAROS} and unzip it there. Alternatively, clone the repository using
 
 ```bash
 git clone https://github.com/Mathijs-Vanrespaille/AMPHAROS
 ```
 
-Say the code is unzipped or cloned into a directory located at `~/AMPHAROS/`.   
 Now create an environment to run AMPHAROS in and perform a local pip install. If you use anaconda (or miniconda), run the following:
 
 ```bash
-conda create -n ampharos python=3.9.12
+conda create -n ampharos python=3.9
 conda activate ampharos
-python -m pip install h5py==3.12.1 matplotlib==3.5.1 pandas==1.4.2 numpy==1.26.4 scipy==1.13.1 -e ~/AMPHAROS/
+python -m pip install -e ~/ampharos/
 ```
 
 You have successfully installed AMPHAROS, congratulations! To verify it has been installed correctly, you can test the installation by trying out the example walkthrough detailed below.
@@ -81,7 +81,7 @@ The user has to provide three things to the code:
 The model output is expected to be structured as follows:
 
 ```
-{model_output_top_dir}
+{MESA_top_dir}
 │
 └───Z{Z1}_M{M1}_logD{logD1}_fov{fov1}
 │   │   Z{Z1}_M{M1}_logD{logD1}_fov{fov1}.hist
@@ -114,7 +114,7 @@ The model output is expected to be structured as follows:
 
 Note that the `gyre_summaries` are optional and are only necessary when using the alternative modelling method employing the first-order rotational treatment, described in Appendix B of Vanrespaille et al. (submitted).  
 
-Herein *Zi* is the initial metallicity of model *i* with three decimal places, *Mi* the initial mass in solar masses with two decimal places, *logDi* the mixing coefficient in cgs at the base of the envelope with one decimal place, *fovi* the exponential overshoot parameter in local pressure scale with three decimal places, *Xcij* the central hydrogen mass fraction at which output step *j* in model *i* is saved and *mnij* is the corresponding MESA model number. *model_output_top_dir* is the top level directory containing all the model output, which the user needs to provide to the code.
+Herein *Zi* is the initial metallicity of model *i* with three decimal places, *Mi* the initial mass in solar masses with two decimal places, *logDi* the mixing coefficient in cgs at the base of the envelope with one decimal place, *fovi* the exponential overshoot parameter in local pressure scale with three decimal places, *Xcij* the central hydrogen mass fraction at which output step *j* in model *i* is saved and *mnij* is the corresponding MESA model number. *MESA_top_dir* is the top level directory containing all the model output, which the user needs to provide to the code.
 The files ending in .hist are the history files created by MESA. Files ending in .HDF in the `gyre_summaries` subdirectories are the summary files created by GYRE. Files ending in .hdf5 are custom summaries of the frequencies predicted by StORM at the different rotation rates for a given input model. These have been created with the Python scripts provided in the StORM setup subdirectory in the Zenodo repository (link to be added).
 
 Due to the size of the model output the code requires, the full model output is not included in the GitHub, though a small subgrid is provided for the example walkthrough below. The remaining models and StORM output in this grid can be generated with the MESA work directory and StORM setup in the Zenodo repository accompanying Vanrespaille et al. (submitted) (link to be provided). All the model output used in Vanrespaille et al. (submitted) are also available at the KU Leuven Research Data Repository (link to be added). Note that this contains far more than what AMPHAROS requires.
@@ -178,11 +178,11 @@ In order to use the code, open a Python terminal, Jupyter notebook, or something
 import ampharos as amphy
 ```
 
-Next, you need to load in the observations and the model grid. As this can take a significant amount of time (> 1h when loading in 1505 models), we load in a much smaller subgrid for teaching purposes described in `input/tutorial/grid_test.csv`. Say the models are stored in `/path/to/model_grid/`, where you will need to replace `/path/to/` with the relevant absolute path. For this test, you can use the small subgrid provided in the GitHub repository. Assuming you installed AMPHAROS in `~/AMPHAROS/` run the following in your Python terminal:
+Next, you need to load in the observations and the model grid. As this can take a significant amount of time (> 1h when loading in 1505 models), we load in a much smaller subgrid for teaching purposes described in `input/tutorial/grid_test.csv`. Say the models are stored in `/path/to/model_grid/`, where you will need to replace `/path/to/` with the relevant absolute path. For this test, you can use the small subgrid provided in the GitHub repository. Assuming you installed AMPHAROS in `~/ampharos/` run the following in your Python terminal:
 
 ```python
-model_output_top_dir = "~/AMPHAROS/model_grid/"
-grid, obs_radial = amphy.initialise_all("input/tutorial/obs_test_radial.tsv", "input/tutorial/grid_test.csv", model_output_top_dir)
+MESA_top_dir = "~/ampharos/model_grid/"
+grid, obs_radial = amphy.initialise_all("input/tutorial/obs_test_radial.tsv", "input/tutorial/grid_test.csv", MESA_top_dir)
 ```
 
 Wait until the subgrid is loaded in, which should take roughly a minute. In the meantime, you should see two stars' telephone numbers printed, followed by the message "Finished reading {k}/27" 27 times. As the radial orders of these stars' modes are not known a priori, we try three different radial orders for the fixed radial mode. Once the grid is loaded in, you can start the analysis using
@@ -258,8 +258,8 @@ If you haven't done so already, read in the test grid and observations using:
 
 ```python
 import ampharos as amphy
-model_output_top_dir = "~/AMPHAROS/model_grid/"
-grid, obs_radial = amphy.initialise_all("input/tutorial/obs_test_radial.tsv", "input/tutorial/grid_test.csv", model_output_top_dir)
+MESA_top_dir = "/path/to/MESA_output_fullGrid/"
+grid, obs_radial = amphy.initialise_all("input/tutorial/obs_test_radial.tsv", "input/tutorial/grid_test.csv", MESA_top_dir)
 ```
 
 To drop the rotational splitting from the cost function and thus the selection of the best model and construction of the statistical model, simply add the `exclude_splitting_from_chi2` flag to the `analyse_observations` function:
@@ -279,8 +279,8 @@ To use GYRE's first-order rotation treatment rather than StORM's second-order tr
 
 ```python
 import ampharos as amphy
-model_output_top_dir = "~/AMPHAROS/model_grid/"
-grid, obs_radial = amphy.initialise_all("input/tutorial/obs_test_radial.tsv", "input/tutorial/grid_test.csv", model_output_top_dir, add_beta=True)
+MESA_top_dir = "/path/to/MESA_output_fullGrid/"
+grid, obs_radial = amphy.initialise_all("input/tutorial/obs_test_radial.tsv", "input/tutorial/grid_test.csv", MESA_top_dir, add_beta=True)
 ```
 
 Then perform the actual analysis with:
