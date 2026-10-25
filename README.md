@@ -266,6 +266,13 @@ You should find that this modelling is completed much faster than when using StO
 Note that you can also turn off the rotational splitting's contributions to the cost function by setting `exclude_splitting_from_chi2=True`. Also note that you can still analyse the star with second-order effects by setting `use_GYRE=False` with the same grid already loaded in.
 
 
+## Model weighting based on mass spacing
+
+By default, each model is given a weight of $ \exp( - \chi^2 / 2) $, based on the quality of the model as given by the reduced $ \chi^2 $ when the statistical values of each star's parameters are computed in step 3. However, since the grid of Vanrespaille et al. (2026) is sampled more tightly at lower initial masses, this biases the results towards lower initial mass. To compensate for this, the weights can be multiplied by half the initial mass step to account for the parameter space volume taken up by each model in the grid. To do so, set `weight_by_grid_spacing=True`.
+
+Note that this assumes that the grid is uniformly sampled in all other parameters. Moreover, the grid should be sampled at all values for the other parameters for each initial mass. Or in other words, a plot of some grid parameter to initial mass should look like a chess board rather than e.g. a hexagonal Catan board.
+
+
 ## Optimising your grid input
 
 The functions `initialise_all` features a few more optional parameters that have not been discussed in the walkthrough above yet. These let the user optimise what parts of the model grid and oscillation computations to include or ignore, hence trading parameter space coverage for computational speed. We briefly explain the options here and provide recommended values for the asteroseismic forward modelling of beta Cephei pulsators:
