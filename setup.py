@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ampharos",
-    version="0.1.0",
+    version="0.1.1",
     author="Mathijs Vanrespaille",
     author_email="mathijs.vanrespaille@kuleuven.be",
     packages=["ampharos"],

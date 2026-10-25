@@ -544,7 +544,8 @@ def find_model_best_frot_wrapper(args) :
 def analyse_observations(grid, all_observations, n_pgs=[1,2,3],
                          Nmodels_to_show=5, use_GYRE=False,
                          exclude_splitting_from_chi2=False, 
-                         model_only_tracks_crossing_HRD_error_ellipse=False) :
+                         model_only_tracks_crossing_HRD_error_ellipse=False, 
+                         weight_by_grid_spacing=False) :
     """
     Compare the set of observations against the grid assuming the different
     radial orders for the fixed mode, using the selected methodology, creating
@@ -557,15 +558,15 @@ def analyse_observations(grid, all_observations, n_pgs=[1,2,3],
 
     grid: dict
         The dictionary summarising all the relevant MESA-StORM(-GYRE) grid
-        output as created by initialise_grid
+        output as created by initialise_grid.
     all_observations: list of dicts
         The dictionaries describing all the observations of a star as defined in
-        create_observation_dict
+        create_observation_dict.
     n_pgs: list of ints
-        Radial orders to try out for the fixed, main mode
+        Radial orders to try out for the fixed, main mode.
     Nmodels_to_show: int
         How many models' frequencies to compare to the observations to help the
-        user find the best fitting radial order
+        user find the best fitting radial order.
         Defaults to 5
     use_GYRE: bool
         Whether to optimise the rotation rate using the mean rotational
@@ -575,13 +576,17 @@ def analyse_observations(grid, all_observations, n_pgs=[1,2,3],
         Defaults to False
     exclude_splitting_from_chi2: bool
         Whether to not include rotational splitting terms in the chi2 cost
-        function
+        function.
         Defaults to False
     model_only_tracks_crossing_HRD_error_ellipse: bool
         Whether to check if an evolutionary track crosses the 2sigma error 
         ellipse on the HRD prior to finding a model with fixed age and rotation
         rate. If True, evolutionary tracks that never enter an observed star's
         HRD error ellipse are neglected. 
+        Defaults to False
+    weight_by_grid_spacing: boolean
+        Whether to add a weight to account for the parameter space volume taken
+        up by each model like in Eq. (5) of Aguirre Borsen-Koch et al. (2022).
         Defaults to False
 
     """
@@ -616,7 +621,8 @@ def analyse_observations(grid, all_observations, n_pgs=[1,2,3],
         # Write output files
         for i,results in enumerate(all_results) :
             add_history_results(grid, results)
-            statistical_model = make_statistical_model(grid, results)
+            statistical_model = make_statistical_model(grid, results, 
+                                                       weight_by_grid_spacing)
             results["statistical_model"] = statistical_model
             write_results(grid, observation, results, statistical_model,
                           f'{results_dir}/n_pg_main{n_pgs_main[i]}/')
@@ -1025,7 +1031,7 @@ def make_plots_to_pick_npg(observation, all_results, save_dir, n_pgs=[1,2,3],
                                      show=show, show_IS=True)
 
 
-def make_statistical_model(grid, results) :
+def make_statistical_model(grid, results, weight_by_grid_spacing=False) :
     """
     Compute the statistical parameter estimation as a exp(-chi^2/2) weighted
     mean and standard deviation
@@ -1041,6 +1047,10 @@ def make_statistical_model(grid, results) :
         The dictionary summarising the forward modelling results assuming a
         certain radial order for the fixed mode created by the functions
         trying_all_n_pg_main and add_history_results
+    weight_by_grid_spacing: boolean
+        Whether to add a weight to account for the parameter space volume taken
+        up by each model like in Eq. (5) of Aguirre Borsen-Koch et al. (2022) 
+        Defaults to False
 
     --------- Returns ---------
 
@@ -1210,16 +1220,30 @@ def make_statistical_model(grid, results) :
         return statistical_model
 
     # In the "normal" case with multiplet of course I need the chi squares to
-    # compute the weights
+    # compute the probabilities
+    Minis = grid["Minis"][toInclude]
     chi2s = results["chi2s_reduced"][toInclude]
     chi2_min = np.min(chi2s)
-    weights = np.exp(-(chi2s-chi2_min)/2) # weights
-    total_weight = np.sum(weights)
-    n = len(weights)
+    probabilities = np.exp(-(chi2s-chi2_min)/2)
+    if weight_by_grid_spacing :
+        grid_Ms = np.sort(np.unique(grid["Minis"]))
+        N_grid_Ms = len(grid_Ms)
+        grid_weights = np.zeros(N_grid_Ms)
+        grid_weights[1:N_grid_Ms-1] = (grid_Ms[2:N_grid_Ms] - grid_Ms[0:N_grid_Ms-2])/2
+        grid_weights[0] = grid_Ms[1] - grid_Ms[0]
+        grid_weights[-1] = grid_Ms[-1] - grid_Ms[-2]
+        grid_weights_dict = {}
+        for M, weight in zip(grid_Ms, grid_weights) :
+            grid_weights_dict[M] = weight
+        weights = np.array([grid_weights_dict[M] for M in Minis])
+    else :
+        weights = 1.0
+    normalisation = np.sum(probabilities*weights)
+    n = len(probabilities)
 
     # Compute the means as our best values
     for column, name in zip(columns, names) :
-        statistical_model[f"{name}_mean"] = np.sum(column*weights)/total_weight
-        statistical_model[f"{name}_std"] = np.sqrt(n/(n-1) * np.sum(weights * (column - statistical_model[f"{name}_mean"])**2) / total_weight)
+        statistical_model[f"{name}_mean"] = np.sum(column*probabilities*weights) / normalisation
+        statistical_model[f"{name}_std"] = np.sqrt(np.sum(probabilities*weights * (column - statistical_model[f"{name}_mean"])**2) * n/(n-1) / normalisation)
 
     return statistical_model

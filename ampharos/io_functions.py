@@ -151,6 +151,8 @@ def create_observation_dict(row, sort_by_l, sort_by_freq) :
         "n_pg_main": int or np.nan
             Radial order of the main, fixed mode if known. np.nan if unknown
     """
+    print(row["name"])
+
     # I immediately start gathering data in the dictionary. This is technically
     # inefficient, but since this bit of the code runs in the blink of an eye
     # anyway, I don't really care and I can't be bothered recoding all of this. 
@@ -172,7 +174,7 @@ def create_observation_dict(row, sort_by_l, sort_by_freq) :
         freqs.append(row[f"f{j}"])
         freqs_err.append(row[f"f_err{j}"])
         amps.append(row[f"a{j}"])
-        if row[f"m{j}"] == 0 :
+        if int(row[f"m{j}"]) == 0 :
             observation["ls"].append(int(row[f"l{j}"]))
             observation["freqs"].append(row[f"f{j}"])
             observation["freqs_err"].append(row[f"f_err{j}"])
@@ -184,8 +186,6 @@ def create_observation_dict(row, sort_by_l, sort_by_freq) :
 
     ms = np.array(ms)
     i_multiplet = np.array(i_multiplet)
-
-    print(observation["name"])
 
     # Loop over each multiplet and, depending on degree, find each's splittings
     for j,i in enumerate(np.unique(i_multiplet)) :
